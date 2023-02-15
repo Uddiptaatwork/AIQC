@@ -90,11 +90,7 @@ def fetch_styledlinks(pathname:str):
 
         page_name = page['name']
         match = pathname.endswith(page_name.lower())
-        if not match:
-            className = "linx"
-        else:
-            className = "linx linx-live"
-
+        className = "linx linx-live" if match else "linx"
         linx_box = html.Div(
             dcc.Link(
                 page_name,

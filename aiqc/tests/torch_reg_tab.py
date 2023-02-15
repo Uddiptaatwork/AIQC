@@ -22,20 +22,17 @@ def fn_lose(**hp):
 
 def fn_build(features_shape, label_shape, **hp):
 	nc = hp['neuron_count']
-	model = torch.nn.Sequential(
+	return torch.nn.Sequential(
 		nn.Linear(features_shape[-1], nc),
-		nn.BatchNorm1d(nc,nc),
+		nn.BatchNorm1d(nc, nc),
 		nn.ReLU(),
 		nn.Dropout(p=0.4),
-
 		nn.Linear(nc, nc),
-		nn.BatchNorm1d(nc,nc),
+		nn.BatchNorm1d(nc, nc),
 		nn.ReLU(),
 		nn.Dropout(p=0.4),
-
-		nn.Linear(nc, label_shape[-1])
+		nn.Linear(nc, label_shape[-1]),
 	)
-	return model
 
 
 def fn_train(
@@ -58,7 +55,7 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=3):
 		"neuron_count": [22]
 		, "loss_type": ["mae","mse"]
 	}
-	
+
 	file_path = datum.get_path('houses.csv')
 
 	shared_dataset = Dataset.Tabular.from_path(
@@ -98,21 +95,19 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=3):
 		)
 	)
 
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "pytorch"
-			, analysis_type   = "regression"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="pytorch",
+			analysis_type="regression",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline       = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-			, search_percent  = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment
 	

@@ -57,7 +57,7 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=3):
 	if (fold_count is not None):
 		size_test = 0.25
 		size_validation = None
-	elif (fold_count is None):
+	else:
 		size_test = 0.18
 		size_validation = 0.14
 
@@ -95,12 +95,11 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=3):
 		algorithm_id=a_id, hyperparameters=hyperparameters
 	).id
 
-	queue = Queue.from_algorithm(
-		algorithm_id = a_id
-		, splitset_id = s_id
-		, foldset_id = fs_id
-		, hyperparamset_id = h_id
-		, repeat_count = repeat_count
-		, permute_count = permute_count
+	return Queue.from_algorithm(
+		algorithm_id=a_id,
+		splitset_id=s_id,
+		foldset_id=fs_id,
+		hyperparamset_id=h_id,
+		repeat_count=repeat_count,
+		permute_count=permute_count,
 	)
-	return queue

@@ -45,8 +45,7 @@ def arr_validate(ndarray:object):
 
 def colIndices_from_colNames(column_names:list, desired_cols:list):
     desired_cols = listify(desired_cols)
-    col_indices = [column_names.index(c) for c in desired_cols]
-    return col_indices
+    return [column_names.index(c) for c in desired_cols]
 
 
 def df_stringifyCols(df:object, rename_columns:list=None):
@@ -125,7 +124,7 @@ def df_setMetadata(dataframe:object, rename_columns:list=None, retype:object=Non
                     but Pandas did not convert it: `dataframe['{col_name}'].dtype == {typ}`.
                     You can either use a different dtype, or try to set your dtypes prior to ingestion in Pandas.
                     """))
-        elif (isinstance(retype, dict)):
+        else:
             for col_name, typ in retype.items():
                 if (typ != dataframe[col_name].dtype):
                     raise Exception(dedent(f"""
@@ -159,7 +158,7 @@ def df_setMetadata(dataframe:object, rename_columns:list=None, retype:object=Non
     Convert the classed `dtype('float64')` to a string so we can use it in `.to_df()`
     """
     dtype = {k: str(v) for k, v in actual_dtypes}
-    
+
     # Each object has the potential to be transformed so each object must be returned.
     return dataframe, columns, shape, dtype
 
@@ -184,11 +183,8 @@ def path_to_df(
         msg = f"\nYikes - The path you provided is not a file according to `path.isfile(path)`:\n{file_path}\n"
         raise Exception(msg)
 
-    if (file_format == 'tsv') or (file_format == 'csv'):
-        if (file_format == 'tsv'):
-            sep='\t'
-        elif (file_format == 'csv'):
-            sep=','
+    if file_format in {'tsv', 'csv'}:
+        sep = '\t' if (file_format == 'tsv') else ','
         df = pd.read_csv(
             filepath_or_buffer = file_path
             , sep              = sep

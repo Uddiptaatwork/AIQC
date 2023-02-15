@@ -56,11 +56,11 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 		, "epochs": [12]
 		, "dense_multiplier": [1]
 	}
-	
+
 	df = datum.to_df('delhi_climate.parquet')
 	df['temperature'][0] = np.NaN
 	df['temperature'][13] = np.NaN
-	
+
 	dataset = Dataset.Tabular.from_df(dataframe=df)
 
 	pipeline = Pipeline(
@@ -79,7 +79,7 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 				),
 			]
 		),
-		
+
 		stratifier = Stratifier(
 			size_test       = 0.11, 
 			size_validation = 0.21,
@@ -87,20 +87,18 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 		)    
 	)
 
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "keras"
-			, analysis_type   = "regression"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="keras",
+			analysis_type="regression",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline       = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-			, search_percent  = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment

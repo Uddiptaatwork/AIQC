@@ -23,7 +23,4 @@ def deserialize(blob:bytes):
 
 
 def reveal_code(blob:object):
-    code_str = source.getsource(
-        deserialize(blob).__code__
-    )
-    return code_str
+    return source.getsource(deserialize(blob).__code__)

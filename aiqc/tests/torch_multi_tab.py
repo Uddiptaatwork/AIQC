@@ -11,21 +11,18 @@ from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 
 
 def fn_build(features_shape, num_classes, **hp):
-	model = nn.Sequential(
+	return nn.Sequential(
 		nn.Linear(features_shape[-1], 12),
-		nn.BatchNorm1d(12,12),
+		nn.BatchNorm1d(12, 12),
 		nn.ReLU(),
 		nn.Dropout(p=0.5),
-
 		nn.Linear(12, num_classes),
 		nn.Softmax(dim=1),
 	)
-	return model
 
 
 def fn_lose(**hp):
-	loser = nn.CrossEntropyLoss(reduction=hp['reduction'])
-	return loser
+	return nn.CrossEntropyLoss(reduction=hp['reduction'])
 
 
 def fn_train(
@@ -47,7 +44,7 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 	hyperparameters = {
 		"reduction":['mean'], "batch_size":[5]
 	}
-	
+
 	if (fold_count is not None):
 		file_path = datum.get_path('iris_10x.tsv')
 	else:
@@ -79,20 +76,18 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 		)
 	)
 
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "pytorch"
-			, analysis_type   = "classification_multi"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="pytorch",
+			analysis_type="classification_multi",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline       = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-			, search_percent  = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment

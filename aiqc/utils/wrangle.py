@@ -22,8 +22,7 @@ def listify(supposed_lst:object=None):
     if (supposed_lst is not None):
         if (not isinstance(supposed_lst, list)):
             supposed_lst = [supposed_lst]
-        # If it was already a list, check it for emptiness and `None`.
-        elif (isinstance(supposed_lst, list)):
+        else:
             if (not supposed_lst):
                 msg = "\nYikes - The list you provided is empty.\n"
                 raise Exception(msg)
@@ -81,7 +80,6 @@ def stratifier_by_dtype_binCount(
         if (bin_count is None):
             bin_count = 3
         stratifier = values_to_bins(array_to_bin=stratify_arr, bin_count=bin_count)
-    # Allow ints to pass either binned or unbinned.
     elif (
         (np.issubdtype(stratify_dtype, np.signedinteger))
         or
@@ -89,17 +87,16 @@ def stratifier_by_dtype_binCount(
     ):
         if (bin_count is not None):
             stratifier = values_to_bins(array_to_bin=stratify_arr, bin_count=bin_count)
-        elif (bin_count is None):
+        else:
             # Assumes the int is for classification.
             stratifier = stratify_arr
-    # Reject binned objs.
     elif (np.issubdtype(stratify_dtype, np.number) == False):
         if (bin_count is not None):
             raise Exception(dedent("""
                 Yikes - Your Label is not numeric (neither `np.floating`, `np.signedinteger`, `np.unsignedinteger`).
                 Therefore, you cannot provide a value for `bin_count`.
             \n"""))
-        elif (bin_count is None):
+        else:
             stratifier = stratify_arr
     return stratifier, bin_count
 
@@ -117,7 +114,7 @@ def verify_interpolateKwargs(interpolate_kwargs:dict):
     if (interpolate_kwargs['method'] == 'polynomial'):
         msg = "\nYikes - `method=polynomial` is prevented due to bug: stackoverflow.com/questions/6722260.\n"
         raise Exception(msg)
-    if ((interpolate_kwargs['axis'] != 0) and (interpolate_kwargs['axis'] != 'index')):
+    if interpolate_kwargs['axis'] not in [0, 'index']:
         # This makes it so that you can run on sparse indices.
         msg = "\nYikes - `axis` must be either 0 or 'index'.\n"
         raise Exception(msg)
@@ -237,7 +234,7 @@ def fetchFeatures_ifAbsent(
     """Check if this split is already in-memory. If not, fetch it."""
     key_trn  = splitset.key_train
     key_eval = splitset.key_evaluation
-    
+
     fetch = True
     if (split==key_trn):
         if (train_features is not None):
@@ -251,8 +248,8 @@ def fetchFeatures_ifAbsent(
         if (eval_features is not None):
             data  = eval_features
             fetch = False
-    
-    if (fetch==True):
+
+    if fetch:
         data, _ = splitset.fetch_cache(
             fold_id          = fold_id
             , split          = split
@@ -273,7 +270,7 @@ def fetchLabel_ifAbsent(
     """Check if data is already in-memory. If not, fetch it."""
     key_trn  = splitset.key_train
     key_eval = splitset.key_evaluation
-    
+
     fetch = True
     if (split==key_trn):
         if (train_label is not None):
@@ -287,8 +284,8 @@ def fetchLabel_ifAbsent(
         if (eval_label is not None):
             data  = eval_label
             fetch = False
-    
-    if (fetch==True):
+
+    if fetch:
         data, _ = splitset.fetch_cache(
             fold_id          = fold_id
             , split          = split
@@ -322,17 +319,17 @@ def schemaNew_matches_schemaOld(splitset_new:object, splitset_old:object):
 
     for i, f_new in enumerate(features_new):
         f_old = features_old[i]
-        
+
         # --- Type & Dimensions ---
         typ_old = f_old.dataset.typ
         typ_new = f_new.dataset.typ
         if (typ_old != typ_new):
             msg = f"\nYikes - New Feature typ={typ_new} != old Feature typ={typ_old}.\n"
             raise Exception(msg)
-        
+
         columns_match(f_old, f_new)
-        
-        if ((typ_new=='sequence') or (typ_new=='image')):
+
+        if typ_new in ['sequence', 'image']:
             rows_new = f_new.dataset.shape['rows']
             rows_old = f_old.dataset.shape['rows']
             if (rows_new != rows_old):
@@ -345,7 +342,7 @@ def schemaNew_matches_schemaOld(splitset_new:object, splitset_old:object):
             if (channels_new != channels_old):
                 msg = f"\nYikes - Image channel dimension does not match. New:{channels_new} vs Old:{channels_old}\n"
                 raise Exception(msg)					
-        
+
         # --- Window ---
         if (
             ((f_old.windows.count()>0) and (f_new.windows.count()==0))

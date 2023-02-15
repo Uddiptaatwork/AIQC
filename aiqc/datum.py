@@ -166,8 +166,7 @@ def list_datums(format:str=None):
     if (format in formats_df):
         pd.set_option('display.max_column',100)
         pd.set_option('display.max_colwidth', 500)
-        df = pd.DataFrame.from_records(records)
-        return df
+        return pd.DataFrame.from_records(records)
     elif (format in formats_lst):
         return records
     else:
@@ -181,29 +180,23 @@ def get_path(name:str):
     - In setup.py, `include_package_data=True,#triggers MANIFEST.in which grafts /data`
     - Remote datasets locations are just hardcoded for now.
     """
-    if (name == 'brain_tumor.csv'):
+    if name == 'brain_tumor.csv':
         # 2nd aiqc is the repo, not the module.
-        full_path = "https://raw.githubusercontent.com/aiqc/aiqc/main/remote_datum/image/brain_tumor/brain_tumor.csv"
-    elif (name == 'galaxies.tsv'):
-        full_path = "https://raw.githubusercontent.com/aiqc/aiqc/main/remote_datum/image/galaxy_morphology/galaxies.tsv"
-    elif (name == 'liberty_moon.csv'):
-        full_path = "https://raw.githubusercontent.com/aiqc/aiqc/main/remote_datum/image/liberty_moon/liberty_moon.csv"
+        return "https://raw.githubusercontent.com/aiqc/aiqc/main/remote_datum/image/brain_tumor/brain_tumor.csv"
+    elif name == 'galaxies.tsv':
+        return "https://raw.githubusercontent.com/aiqc/aiqc/main/remote_datum/image/galaxy_morphology/galaxies.tsv"
+    elif name == 'liberty_moon.csv':
+        return "https://raw.githubusercontent.com/aiqc/aiqc/main/remote_datum/image/liberty_moon/liberty_moon.csv"
     else:
         short_path = f"data/{name}"
-        full_path = resource_filename('aiqc', short_path)
-    return full_path
+        return resource_filename('aiqc', short_path)
 
 
 def to_df(name:str):
     file_path = get_path(name)
 
     if (('.tsv' in name) or ('.csv' in name)):
-        if ('.tsv' in name):
-            separator = '\t'
-        elif ('.csv' in name):
-            separator = ','
-        else:
-            separator = None
+        separator = '\t' if ('.tsv' in name) else ','
         df = pd.read_csv(file_path, sep=separator)
     elif ('.parquet' in name):
         df = pd.read_parquet(file_path)
@@ -213,5 +206,4 @@ def to_df(name:str):
 def get_remote_urls(manifest_name:'str'):
     # `df=to_df` looks weird but it's right.
     df          = to_df(name=manifest_name)
-    remote_urls = df['url'].to_list()
-    return remote_urls
+    return df['url'].to_list()

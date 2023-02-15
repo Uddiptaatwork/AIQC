@@ -77,8 +77,8 @@ class Plot(object):
 
         fig.update_xaxes(zeroline=False, gridcolor='#2c3c4a', tickfont=dict(color='#818487'))
         fig.update_yaxes(zeroline=False, gridcolor='#2c3c4a', tickfont=dict(color='#818487'))
-        
-        if (call_display==True):
+
+        if call_display:
             fig.show()
         else:
             fig = set_dash_font(fig)
@@ -93,14 +93,10 @@ class Plot(object):
         , call_display:bool = True
     ):
         """Dataframe rows are epochs and columns are metric names."""
-        if (skip_head==True):
+        if skip_head:
             dataframe = dataframe.tail(round(dataframe.shape[0]*.85))
         # Spline seems to crash with too many points.
-        if (dataframe.shape[0] >= 400):
-            line_shape = 'linear'
-        elif (dataframe.shape[0] < 400):
-            line_shape = 'spline'
-
+        line_shape = 'linear' if (dataframe.shape[0] >= 400) else 'spline'
         # Create a plot for every pair.
         figs = []
         for train,val in history_pairs.items():
@@ -136,12 +132,12 @@ class Plot(object):
             )
             fig.update_xaxes(zeroline=False, gridcolor='#2c3c4a', tickfont=dict(color='#818487'))
             fig.update_yaxes(zeroline=False, gridcolor='#2c3c4a', tickfont=dict(color='#818487'))
-            if (call_display==True):
+            if call_display:
                 fig.show()
             else:
                 fig = set_dash_font(fig)
                 figs.append(fig)
-        if (call_display==False):
+        if not call_display:
             return figs
 
 
@@ -219,12 +215,12 @@ class Plot(object):
             fig.update_traces(
                 hovertemplate = """predicted: %{x}<br>actual: %{y}<br>count: %{z}<extra></extra>"""
             )
-            if (call_display==True):
+            if call_display:
                 fig.show()
             else:
                 fig = set_dash_font(fig)
                 figs.append(fig)
-        if (call_display==False):
+        if not call_display:
             return figs
 
 
@@ -258,7 +254,7 @@ class Plot(object):
         )
         fig.update_xaxes(zeroline=False, gridcolor='#2c3c4a', tickfont=dict(color='#818487'))
         fig.update_yaxes(zeroline=False, gridcolor='#2c3c4a', tickfont=dict(color='#818487'))
-        if (call_display==True):
+        if call_display:
             fig.show()
         else:
             fig = set_dash_font(fig)
@@ -306,7 +302,7 @@ class Plot(object):
         )
         fig.update_xaxes(zeroline=False, gridcolor='#2c3c4a', tickfont=dict(color='#818487'))
         fig.update_yaxes(zeroline=False, gridcolor='#2c3c4a', tickfont=dict(color='#818487'))
-        if (call_display==True):
+        if call_display:
             fig.show()
         else:
             fig = set_dash_font(fig)
@@ -321,7 +317,7 @@ class Plot(object):
     ):
         if (top_n is not None):
             title = f"Feature Importance <sub>(feature.id:{feature_id}, permute_count:{permute_count}, top_n:{top_n})</sub><br><br>"
-        elif (top_n is None):
+        else:
             title = f"Feature Importance <sub>(feature.id:{feature_id}, permute_count:{permute_count})</sub><br><br>"
 
         fig = go.Figure()
@@ -340,11 +336,12 @@ class Plot(object):
             , margin     = dict(l=margin_left)
         )
         fig.update_xaxes(
-            title = f"Importance<br><sup>[permuted loss - loss]</sup>",
-            # ticks not really showing.
-            tickangle=45, nticks=15, gridcolor='#2c3c4a'
+            title="Importance<br><sup>[permuted loss - loss]</sup>",
+            tickangle=45,
+            nticks=15,
+            gridcolor='#2c3c4a',
         )
-        if (call_display==True):
+        if call_display:
             fig.show()
         else:
             fig = set_dash_font(fig)
@@ -382,7 +379,7 @@ def confidence_binary(
         , line          = dict(width=2, color='#004473')
         , hovertemplate = None
         , hoverinfo     = 'skip'
-        
+
     # Shade & divide the quadrants
     ).add_hrect(
         y0=0.5
@@ -426,7 +423,7 @@ def confidence_binary(
                 , marker = dict(size=12, color='#004473')
             ).select_traces()
         )
-    
+
     # Label the quadrants
     ).add_annotation(
         text        = f"{labels[0]}"
@@ -445,7 +442,7 @@ def confidence_binary(
         , showarrow = False
         , font      = dict(size=18, color='#05300c')
     )
-    if (call_display==True):
+    if call_display:
         fig.show()
     else:
         fig = set_dash_font(fig)
@@ -457,31 +454,33 @@ def confidence_multi(
     , height:int
     , call_display:bool = True
 ):
-    fig = px.pie(
-        label_probabilities
-        , values                  = 'Probability'
-        , names                   = 'Labels'
-        , hole                    = .7
-        , title                   = f"<b>Probabilities:</b>"
-        , color_discrete_sequence = px.colors.qualitative.Pastel
-    ).update_traces(
-        textposition = 'outside'
-    ).update_layout(
-        legend_title_text = "Labels:"
-        , height          = height
-        , title_x         = 0.1
-        , title_y         = 0.7
-        , margin          = dict(l=0, r=0, t=15, b=15)
-        , title           = dict(font=dict(size=15))
-        , legend          = dict(
-            yanchor   = "top"
-            , y       = 1
-            , xanchor = "right"
-            , x       = 1.3
-            , title   = dict(font = dict(size=15))
+    fig = (
+        px.pie(
+            label_probabilities,
+            values='Probability',
+            names='Labels',
+            hole=0.7,
+            title="<b>Probabilities:</b>",
+            color_discrete_sequence=px.colors.qualitative.Pastel,
+        )
+        .update_traces(textposition='outside')
+        .update_layout(
+            legend_title_text="Labels:",
+            height=height,
+            title_x=0.1,
+            title_y=0.7,
+            margin=dict(l=0, r=0, t=15, b=15),
+            title=dict(font=dict(size=15)),
+            legend=dict(
+                yanchor="top",
+                y=1,
+                xanchor="right",
+                x=1.3,
+                title=dict(font=dict(size=15)),
+            ),
         )
     )
-    if (call_display==True):
+    if call_display:
         fig.show()
     else:
         fig = set_dash_font(fig)
