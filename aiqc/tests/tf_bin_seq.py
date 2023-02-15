@@ -53,7 +53,7 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=3):
 	df['sensor_150'][80] = np.NaN
 	df['sensor_152'][22] = np.NaN
 	df['sensor_170'][0]  = np.NaN
-	
+
 	label_df = df[['seizure']]
 	label_dataset = Dataset.Tabular.from_df(label_df)
 
@@ -64,7 +64,7 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=3):
 	else:
 		path_models_cache = app_folders['cache_tests']
 		create_folder(path_models_cache)
-		path_file = f"temp_arr.npy"
+		path_file = "temp_arr.npy"
 		path_full = path.join(path_models_cache,path_file)
 		np_save(path_full, sensor_arr3D, allow_pickle=True)
 		feature_dataset = Dataset.Sequence.from_numpy(
@@ -79,30 +79,28 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=3):
 			interpolaters = Input.Interpolater(dtypes="float64"),
 			encoders      = Input.Encoder(sklearn_preprocess=StandardScaler())
 		),
-		
+
 		Target(
 			dataset = label_dataset
 		),
-		
+
 		Stratifier(
 			size_test       = 0.12, 
 			size_validation = 0.22,
 			fold_count      = fold_count
 		)    
 	)
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "keras"
-			, analysis_type   = "classification_binary"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="keras",
+			analysis_type="classification_binary",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline       = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+		),
 	)
-	return experiment

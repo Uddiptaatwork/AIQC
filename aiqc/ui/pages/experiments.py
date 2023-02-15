@@ -133,27 +133,28 @@ layout = html.Div(
 # Helper functions for callbacks.
 def fetch_params(predictor:object, size:str):
     hyperparameters = predictor.get_hyperparameters()
-    if (hyperparameters is not None):
-        headers = [html.Th("parameter"), html.Th("value")]
-        table_header = [html.Thead(html.Tr(headers), className='thead')]
-        # bools are not rendering so need to force them to str
-        rows = []
-        for k,v in hyperparameters.items():
-            if isinstance(v,bool):
-                v = str(v) 
-            rows.append(
-                html.Tr([html.Td(k), html.Td(v)])
-            )
-        table_body = [html.Tbody(rows)]
-        hp_table = dbc.Table(
-            table_header + table_body,
-            dark=True, hover=True, responsive=True,
-            striped=True, bordered=False, className=f"tbl {size} ctr"
+    if hyperparameters is None:
+        return dbc.Alert("Sorry - This model has no parameters.", className='alert')
+    headers = [html.Th("parameter"), html.Th("value")]
+    table_header = [html.Thead(html.Tr(headers), className='thead')]
+    # bools are not rendering so need to force them to str
+    rows = []
+    for k,v in hyperparameters.items():
+        if isinstance(v,bool):
+            v = str(v) 
+        rows.append(
+            html.Tr([html.Td(k), html.Td(v)])
         )
-    else:
-        msg = "Sorry - This model has no parameters."
-        hp_table = dbc.Alert(msg, className='alert')
-    return hp_table
+    table_body = [html.Tbody(rows)]
+    return dbc.Table(
+        table_header + table_body,
+        dark=True,
+        hover=True,
+        responsive=True,
+        striped=True,
+        bordered=False,
+        className=f"tbl {size} ctr",
+    )
 
 
 """
@@ -195,13 +196,15 @@ def update_progress(queue_id:int):
         return None
     queue = Queue.get_by_id(queue_id)
     progress = round(queue.runs_completed/queue.total_runs*100)
-    
+
     if (progress<100):
-        children = dbc.Progress(
-            id="progress_bar", className='prog_bar ctr', color="secondary",
-            value=progress, label=f"{progress}%"
+        return dbc.Progress(
+            id="progress_bar",
+            className='prog_bar ctr',
+            color="secondary",
+            value=progress,
+            label=f"{progress}%",
         )
-        return children 
     else:
         return None
 
@@ -250,16 +253,15 @@ def plot_experiment(
     score_type:str, min_score:float, max_loss:float,
 ):   
     if (queue_id is None):
-        queues = list(Queue)
-        if (not queues):
-            msg = "Sorry - Cannot display plot because no Queues exist yet. Data will refresh automatically."
-            return dbc.Alert(msg, className='alert')
-        else:
+        if queues := list(Queue):
             # Plot the most recent by default
             queue = queues[-1]
+        else:
+            msg = "Sorry - Cannot display plot because no Queues exist yet. Data will refresh automatically."
+            return dbc.Alert(msg, className='alert')
     else:
         queue = Queue.get_by_id(queue_id)
-    
+
     try:
         fig = queue.plot_performance(
             score_type=score_type, min_score=min_score, max_loss=max_loss,
@@ -327,17 +329,14 @@ def interactive_params(new_click:dict):
 def flip_model_star(n_clicks, id):
     if (n_clicks is None):
         raise PreventUpdate
-    
+
     predictor_id = id['model_id']
     Predictor.get_by_id(predictor_id).flip_star()
     # Don't use stale, pre-update, in-memory data
     starred = Predictor.get_by_id(predictor_id).is_starred
-    if (starred==False):
-        icon = "clarity:star-line"
-    else:
-        icon = "clarity:star-solid"
+    icon = "clarity:star-line" if (starred==False) else "clarity:star-solid"
     star = DashIconify(icon=icon, width=20, height=20)
-    
+
     # The callback kept firing preds were updated
     n_clicks = None
     return star, n_clicks

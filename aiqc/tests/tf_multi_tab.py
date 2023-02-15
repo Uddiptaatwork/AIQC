@@ -19,8 +19,7 @@ def fn_build(features_shape, label_shape, **hp):
 
 
 def fn_optimize(**hp):
-	optimizer = tf.keras.optimizers.Adamax(hp['learning_rate'])
-	return optimizer
+	return tf.keras.optimizers.Adamax(hp['learning_rate'])
 
 
 def fn_train(
@@ -57,13 +56,12 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 	# Note: iris 10x has ordinal labels, not text.
 	if (fold_count is not None):
 		file_path = datum.get_path('iris_10x.tsv')
-		name = "iris"
 		description = "Expanded sample population for cross validation"
 	else:
 		file_path = datum.get_path('iris.tsv')
-		name = "iris"
 		description = "Just large enough to be representative of population"
-	
+
+	name = "iris"
 	shared_dataset = Dataset.Tabular.from_path(
 		file_path = file_path
 		, name = name
@@ -97,20 +95,18 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 			fold_count      = fold_count
 		)    
 	)
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "keras"
-			, analysis_type   = "classification_multi"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="keras",
+			analysis_type="classification_multi",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline       = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-			, search_percent  = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment

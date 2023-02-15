@@ -70,11 +70,10 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count=None):
 		, activation = ['relu']
 		, multiplier = [3]
 	)
-	
-	
+
+
 	folder_path = 'remote_datum/image/liberty_moon/images'
-	
-		# Just ensuring we test all forms of ingestion.
+
 	if (fold_count is None):
 		dataset = Dataset.Image.from_folder(
 			folder_path=folder_path, ingest=False, retype='float64'
@@ -94,7 +93,7 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count=None):
 			),
 			reshape_indices = (0,3,4)
 		),
-		
+
 		stratifier = Stratifier(
 			size_test       = 0.11, 
 			size_validation = 0.21,
@@ -102,20 +101,18 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count=None):
 		)
 	)
 
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "keras"
-			, analysis_type   = "regression"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="keras",
+			analysis_type="regression",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline         = pipeline
-			, repeat_count   = repeat_count
-			, permute_count  = permute_count
-			, search_percent = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment

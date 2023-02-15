@@ -30,30 +30,30 @@ def check_sklearn_attributes(sklearn_preprocess:object, is_label:bool):
     # Encoder parent modules vary: `sklearn.preprocessing._data` vs `sklearn.preprocessing._label`
     # Feels cleaner than this: stackoverflow.com/questions/14570802
     coder_type = str(type(sklearn_preprocess))
-    if ('sklearn.preprocessing' not in coder_type):
+    if 'sklearn.preprocessing' not in coder_type:
         raise Exception(dedent("""
             Yikes - At this point in time, only `sklearn.preprocessing` encoders are supported.
             https://scikit-learn.org/stable/modules/classes.html#module-sklearn.preprocessing
         """))
-    elif ('sklearn.preprocessing' in coder_type):
-        if (not hasattr(sklearn_preprocess, 'fit')):    
-            raise Exception(dedent("""
+    if (not hasattr(sklearn_preprocess, 'fit')):    
+        raise Exception(dedent("""
                 Yikes - The `sklearn.preprocessing` method you provided does not have a `fit` method.\n
                 Please use one of the uppercase methods instead.
                 For example: use `RobustScaler` instead of `robust_scale`.
             """))
 
-        if (hasattr(sklearn_preprocess, 'sparse')):
-            if (sklearn_preprocess.sparse == True):
-                try:
-                    sklearn_preprocess.sparse = False
-                    # This was just too verbose
-                    # print(dedent("""
-                    #     └── Info - System overriding user input to set `sklearn_preprocess.sparse=False`.
-                    #         This would have generated 'scipy.sparse.csr.csr_matrix', causing Keras training to fail.
-                    # """))
-                except:
-                    raise Exception(dedent(f"""
+    if (hasattr(sklearn_preprocess, 'sparse')) and (
+        sklearn_preprocess.sparse == True
+    ):
+        try:
+            sklearn_preprocess.sparse = False
+            # This was just too verbose
+            # print(dedent("""
+            #     └── Info - System overriding user input to set `sklearn_preprocess.sparse=False`.
+            #         This would have generated 'scipy.sparse.csr.csr_matrix', causing Keras training to fail.
+            # """))
+        except:
+            raise Exception(dedent(f"""
                         Yikes - Detected `sparse==True` attribute of {sklearn_preprocess}.
                         System attempted to override this to False, but failed.
                         FYI `sparse` is True by default if left blank.
@@ -61,48 +61,51 @@ def check_sklearn_attributes(sklearn_preprocess:object, is_label:bool):
                         Please try again with False. For example, `OneHotEncoder(sparse=False)`.
                     """))
 
-        if (hasattr(sklearn_preprocess, 'drop')):
-            if (sklearn_preprocess.drop is not None):
-                try:
-                    sklearn_preprocess.drop = None
-                    print(dedent("""
+    if (hasattr(sklearn_preprocess, 'drop')) and (
+        sklearn_preprocess.drop is not None
+    ):
+        try:
+            sklearn_preprocess.drop = None
+            print(dedent("""
                         └── Info - System overriding user input to set `sklearn_preprocess.drop`.
                             System cannot handle `drop` yet when dynamically inverse_transforming predictions.
                     """))
-                except:
-                    raise Exception(dedent(f"""
+        except:
+            raise Exception(dedent(f"""
                         Yikes - Detected `drop is not None` attribute of {sklearn_preprocess}.
                         System attempted to override this to None, but failed.
                     """))
 
-        if (hasattr(sklearn_preprocess, 'copy')):
-            if (sklearn_preprocess.copy == True):
-                try:
-                    sklearn_preprocess.copy = False
-                    # This was just too verbose
-                    # print(dedent("""
-                    #     └── Info - System overriding user input to set `sklearn_preprocess.copy=False`.
-                    #     This saves memory when concatenating the output of many encoders.
-                    # """))
-                except:
-                    raise Exception(dedent(f"""
+    if (hasattr(sklearn_preprocess, 'copy')) and (
+        sklearn_preprocess.copy == True
+    ):
+        try:
+            sklearn_preprocess.copy = False
+            # This was just too verbose
+            # print(dedent("""
+            #     └── Info - System overriding user input to set `sklearn_preprocess.copy=False`.
+            #     This saves memory when concatenating the output of many encoders.
+            # """))
+        except:
+            raise Exception(dedent(f"""
                         Yikes - Detected `copy==True` attribute of {sklearn_preprocess}.
                         System attempted to override this to False, but failed.
                         FYI `copy` is True by default if left blank, which consumes memory.\n
                         Please try again with 'copy=False'.
                         For example, `StandardScaler(copy=False)`.
                     """))
-        
-        if (hasattr(sklearn_preprocess, 'sparse_output')):
-            if (sklearn_preprocess.sparse_output == True):
-                try:
-                    sklearn_preprocess.sparse_output = False
-                    print(dedent("""
+
+    if (hasattr(sklearn_preprocess, 'sparse_output')) and (
+        sklearn_preprocess.sparse_output == True
+    ):
+        try:
+            sklearn_preprocess.sparse_output = False
+            print(dedent("""
                         └── Info - System overriding user input to set `sklearn_preprocess.sparse_output=False`.
                             This would have generated 'scipy.sparse.csr.csr_matrix', causing Keras training to fail.
                     """))
-                except:
-                    raise Exception(dedent(f"""
+        except:
+            raise Exception(dedent(f"""
                         Yikes - Detected `sparse_output==True` attribute of {sklearn_preprocess}.
                         System attempted to override this to True, but failed.
                         Please try again with 'sparse_output=False'.
@@ -110,26 +113,28 @@ def check_sklearn_attributes(sklearn_preprocess:object, is_label:bool):
                         For example, `LabelBinarizer(sparse_output=False)`.
                     """))
 
-        if (hasattr(sklearn_preprocess, 'order')):
-            if (sklearn_preprocess.order == 'F'):
-                try:
-                    sklearn_preprocess.order = 'C'
-                    print(dedent("""
+    if (hasattr(sklearn_preprocess, 'order')) and (
+        sklearn_preprocess.order == 'F'
+    ):
+        try:
+            sklearn_preprocess.order = 'C'
+            print(dedent("""
                         └── Info - System overriding user input to set `sklearn_preprocess.order='C'`.
                             This changes the output shape of the 
                     """))
-                except:
-                    raise Exception(dedent(f"""
+        except:
+            raise Exception(dedent(f"""
                         System attempted to override this to 'C', but failed.
                         Yikes - Detected `order=='F'` attribute of {sklearn_preprocess}.
                         Please try again with 'order='C'.
                         For example, `PolynomialFeatures(order='C')`.
                     """))
 
-        if (hasattr(sklearn_preprocess, 'encode')):
-            if (sklearn_preprocess.encode == 'onehot'):
-                # Multiple options here, so don't override user input.
-                raise Exception(dedent(f"""
+    if (hasattr(sklearn_preprocess, 'encode')) and (
+        sklearn_preprocess.encode == 'onehot'
+    ):
+        # Multiple options here, so don't override user input.
+        raise Exception(dedent(f"""
                     Yikes - Detected `encode=='onehot'` attribute of {sklearn_preprocess}.
                     FYI `encode` is 'onehot' by default if left blank and it predictors in 'scipy.sparse.csr.csr_matrix',
                     which causes Keras training to fail.\n
@@ -137,12 +142,8 @@ def check_sklearn_attributes(sklearn_preprocess:object, is_label:bool):
                     For example, `KBinsDiscretizer(encode='onehot-dense')`.
                 """))
 
-        if (
-            (is_label==True)
-            and
-            (not hasattr(sklearn_preprocess, 'inverse_transform'))
-        ):
-            print(dedent("""
+    if is_label and not hasattr(sklearn_preprocess, 'inverse_transform'):
+        print(dedent("""
                 Warning - The following encoders do not have an `inverse_transform` method.
                 It is inadvisable to use them to encode Labels during training, 
                 because you may not be able to programmatically decode your raw predictions 
@@ -151,23 +152,23 @@ def check_sklearn_attributes(sklearn_preprocess:object, is_label:bool):
                 [Binarizer, KernelCenterer, Normalizer, PolynomialFeatures, SplineTransformer]
             """))
 
-        """
+    """
         - Binners like 'KBinsDiscretizer' and 'QuantileTransformer'
             will place unseen observations outside bounds into existing min/max bin.
         - I assume that someone won't use a custom FunctionTransformer, for categories
             when all of these categories are available.
         - LabelBinarizer is not threshold-based, it's more like an OHE.
         """
-        only_fit_train = True
-        stringified_coder = str(sklearn_preprocess)
-        is_categorical = False
-        for c in categorical_encoders:
-            if (stringified_coder.startswith(c)):
-                only_fit_train = False
-                is_categorical = True
-                break
+    only_fit_train = True
+    stringified_coder = str(sklearn_preprocess)
+    is_categorical = False
+    for c in categorical_encoders:
+        if (stringified_coder.startswith(c)):
+            only_fit_train = False
+            is_categorical = True
+            break
 
-        return sklearn_preprocess, only_fit_train, is_categorical
+    return sklearn_preprocess, only_fit_train, is_categorical
 
 
 def fit_dynamicDimensions(sklearn_preprocess:object, samples_to_fit:object):
@@ -214,9 +215,9 @@ def fit_dynamicDimensions(sklearn_preprocess:object, samples_to_fit:object):
                     # "2D single column" already failed. Need it to fail again to trigger except.
                 elif (width == 1):
                     # Reshape "2D single columns" to “3D of 2D single columns.”
-                    samples_to_fit = samples_to_fit.reshape(1, samples_to_fit.shape[0], 1)    
+                    samples_to_fit = samples_to_fit.reshape(1, samples_to_fit.shape[0], 1)
                 # Fit against each 2D array within the 3D array.
-                for i, arr in enumerate(samples_to_fit):
+                for arr in samples_to_fit:
                     fit_encoder = sklearn_preprocess.fit(arr)
                     fitted_encoders.append(fit_encoder)
             except:
@@ -226,7 +227,7 @@ def fit_dynamicDimensions(sklearn_preprocess:object, samples_to_fit:object):
                     # This transformation is tested for both (width==1) as well as (width>1). 
                     samples_to_fit = samples_to_fit.transpose(2,0,1)[0]
                     # Fit against each column in 2D array.
-                    for i, arr in enumerate(samples_to_fit):
+                    for arr in samples_to_fit:
                         fit_encoder = sklearn_preprocess.fit(arr)
                         fitted_encoders.append(fit_encoder)
                 except:
@@ -328,29 +329,28 @@ def fit_features(
     arr_features:object, samples_train:list,
     feature:object,
 ):
-    featurecoders   = list(feature.featurecoders)
     fitted_encoders = []
-    if (len(featurecoders) > 0):
+    if featurecoders := list(feature.featurecoders):
         f_cols = feature.columns
         # For each featurecoder: fetch, transform, & concatenate matching features.
         # One nested list per Featurecoder. List of lists.
         for featurecoder in featurecoders:
             preproc = featurecoder.sklearn_preprocess
 
-            if (featurecoder.only_fit_train == True):
-                features_to_fit = arr_features[samples_train]
-            elif (featurecoder.only_fit_train == False):
+            if featurecoder.only_fit_train == False:
                 features_to_fit = arr_features
 
+            elif featurecoder.only_fit_train == True:
+                features_to_fit = arr_features[samples_train]
             """
             Encoders want 2D data. 1-way trip; data destroyed after encoding.
             3D = seq | tab window
             4D = img | seq window
             5D = img window
-            """			
+            """
             shape = features_to_fit.shape
             dim   = features_to_fit.ndim
-            
+
             if (dim==3):
                 rows            = shape[0] * shape[1]
                 features_to_fit = features_to_fit.reshape(rows, shape[2])
@@ -389,8 +389,7 @@ def transform_features(
     Challenge: can't overwrite columns with data of different type (e.g. encoding object to int), 
     so they have to be pieced together.
     """
-    featurecoders = list(feature.featurecoders)
-    if (len(featurecoders) > 0):
+    if featurecoders := list(feature.featurecoders):
         # Handle Sequence (part 1): reshape 3D to tall 2D for transformation.
         og_shape = arr_features.shape
         if (len(og_shape)==3):
@@ -406,7 +405,7 @@ def transform_features(
             idx                = featurecoder.idx
             fitted_coders      = fitted_encoders[idx]# returns list
             encoding_dimension = featurecoder.encoding_dimension
-            
+
             # Only transform these columns.
             matching_columns = featurecoder.matching_columns
             # Get the indices of the desired columns.
@@ -435,7 +434,7 @@ def transform_features(
                     (transformed_features, encoded_features)
                     , axis = 1
                 )
-        
+
         # After all featurecoders run, merge in leftover, unencoded columns.
         leftover_columns = featurecoders[-1].leftover_columns
         if (len(leftover_columns) > 0):
@@ -446,7 +445,7 @@ def transform_features(
             )
             # Filter the array using those indices.
             leftover_features = arr_features[:,col_indices]
-                    
+
             transformed_features = np.concatenate(
                 (transformed_features, leftover_features)
                 , axis = 1
@@ -473,7 +472,7 @@ def transform_features(
                 og_shape[3],
                 og_shape[4],
             )
-            
-    elif (len(featurecoders) == 0):
+
+    elif not featurecoders:
         transformed_features = arr_features
     return transformed_features

@@ -48,48 +48,42 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 	file_path = datum.get_path('sonar.csv')
 
 	# testing overlap of hashes
-	if (fold_count is not None):
-		name = 'rocks n radio'
-	else:
-		name = 'mines'
-
+	name = 'rocks n radio' if (fold_count is not None) else 'mines'
 	shared_dataset = Dataset.Tabular.from_path(
 		file_path = file_path
 		, name = name
 	)
-	
+
 	pipeline = Pipeline(
 		Input(
 			dataset  = shared_dataset,
 			encoders = Input.Encoder(sklearn_preprocess=PowerTransformer())
 		),
-		
+
 		Target(
 			dataset = shared_dataset,
 			column = 'object',
 			encoder = Target.Encoder(sklearn_preprocess=LabelBinarizer())
 		),
-		
+
 		Stratifier(
 			size_test       = 0.11, 
 			size_validation = 0.21,
 			fold_count      = fold_count
 		)    
 	)
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "keras"
-			, analysis_type   = "classification_binary"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="keras",
+			analysis_type="classification_binary",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline       = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-			, search_percent  = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment

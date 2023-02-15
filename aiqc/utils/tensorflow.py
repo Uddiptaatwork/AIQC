@@ -10,21 +10,17 @@ import numpy as np
 
 # `select_fn_lose()`
 def lose_regression(**hp):
-    loser = tf.keras.losses.MeanAbsoluteError()
-    return loser
+    return tf.keras.losses.MeanAbsoluteError()
 
 def lose_binary(**hp):
-    loser = tf.keras.losses.BinaryCrossentropy()
-    return loser
+    return tf.keras.losses.BinaryCrossentropy()
 
 def lose_multiclass(**hp):
-    loser = tf.keras.losses.CategoricalCrossentropy()
-    return loser
+    return tf.keras.losses.CategoricalCrossentropy()
 
 # `select_fn_optimize()`
 def optimize(**hp):
-    optimizer = tf.keras.optimizers.Adamax(learning_rate=0.01)
-    return optimizer
+    return tf.keras.optimizers.Adamax(learning_rate=0.01)
 
 # `select_fn_predict()`
 def predict_multiclass(model, features):
@@ -46,9 +42,7 @@ def predict_binary(model, features):
     return prediction, probability
 
 def predict_regression(model, features):
-    prediction = model.predict(features)
-    # ^ Output is a single value, not `probability, prediction`
-    return prediction
+    return model.predict(features)
 
 
 class TrainingCallback():

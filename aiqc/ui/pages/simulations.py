@@ -119,135 +119,140 @@ def populate_features(model_id:int):
         subtitle = html.P(subtitle, className='sim-subtitle')
         f_kids.append(subtitle)
 
-        if (typ=='tabular'):
-            stats_numeric   = f.dataset.stats_numeric
-            stats_categoric = f.dataset.stats_categoric
-
-            # Ideally we want to show features in rank order of importance
-            importance = model.predictions[0].feature_importance
-            f_typs     = f.get_dtypes()
-            if (importance is not None):
-                imp_df       = model.predictions[0].importance_df(feature_id=f.id)
-                ranked_feats = list(imp_df['Feature'])
-            else:
-                ranked_feats = list(f_typs.keys())
-            
-            head = [html.Thead(html.Tr([
-                html.Th("Stat"), html.Th("Value")
-            ])),]
-
-            for col in ranked_feats:
-                typ        = f_typs[col]
-                is_numeric = np.issubdtype(typ, np.number)
-                is_date    = np.issubdtype(typ, np.datetime64)
-                
-                # Assemble the feature metadata tooltip
-                if (is_numeric or is_date):
-                    tbod = []
-                    # Feature importance metadata
-                    if (importance is not None):
-                        imp = float(imp_df[imp_df['Feature']==col]['Median'])
-                        tip = html.Tr([
-                            html.Td('importance'),
-                            html.Td(f"{imp:.3f}")
-                        ])
-                        tbod.append(tip)
-                    # Feature distribution metadata
-                    stats = stats_numeric[col]
-                    for name,val in stats.items():
-                        tip = html.Tr([
-                            html.Td(name),
-                            html.Td(f"{val:.3f}")
-                        ])
-                        tbod.append(tip)
-                    tbod = [html.Tbody(tbod)]
-                    # Don't use comma separated list
-                    tips = dbc.Table(head + tbod)
-                    
-                    uid  = str(uuid1())
-                    field = html.Div(
-                        [
-                            html.Div(col, id=uid, className='sim-slider-name'),
-                            dbc.Tooltip(
-                                tips, target=uid, placement='right', className='sim-tooltip'
-                            ),
-                            dbc.Input(
-                                id          = {'role':'feature', 'column':col},
-                                type        = 'number',
-                                value       = stats['50%'],
-                                placeholder = stats['50%'],
-                                className   = 'sim-slider-num'
-                                # can't figure out validation tied to `step`
-                            )
-                        ],
-                        className="sim-slider"
-                    )
-
-                else:
-                    uniques = stats_categoric[col]
-                    options = [dict(label=f"{name}: {val*100:.1f}%", value=name) for name,val in uniques.items()]
-                    # Uniques seem to be ordered by count.
-                    value   = list(uniques.keys())[0]
-                    uid  = str(uuid1())
-
-                    tbod = []
-                    # Feature importance metadata
-                    if (importance is not None):
-                        imp = float(imp_df[imp_df['Feature']==col]['Median'])
-                        tip = html.Tr([
-                            html.Td('importance'),
-                            html.Td(f"{imp:.3f}")
-                        ])
-                        tbod.append(tip)
-                    tbod = [html.Tbody(tbod)]
-                    # Don't use comma separated list
-                    tips = dbc.Table(head + tbod)
-
-                    field = html.Div(
-                        [
-                            html.Div(col, id=uid, className='sim-slider-name'),
-                            dbc.Tooltip(
-                                tips, target=uid, placement='right', className='sim-tooltip'
-                            ),
-                            dbc.InputGroup(
-                                dbc.Select(
-                                    id={'role':'feature', 'column':col},
-                                    options=options, value=value, style={"borderRadius":"10px"}
-                                ),
-                                size="sm", className='ctrl_chart ctr',
-                                style={"width":"40%", "marginLeft":"50px"}
-                            )
-                        ],
-                        className="sim-slider"
-                    )
-                f_kids.append(field)
-        else:
+        if typ != 'tabular':
             return [
                 html.Br(), dbc.Alert("Simulation UI only supports Tabular Features right now.", className='alert')
             ]
 
-    
-    kids = [
+
+        stats_numeric   = f.dataset.stats_numeric
+        stats_categoric = f.dataset.stats_categoric
+
+        # Ideally we want to show features in rank order of importance
+        importance = model.predictions[0].feature_importance
+        f_typs     = f.get_dtypes()
+        if (importance is not None):
+            imp_df       = model.predictions[0].importance_df(feature_id=f.id)
+            ranked_feats = list(imp_df['Feature'])
+        else:
+            ranked_feats = list(f_typs.keys())
+
+        head = [html.Thead(html.Tr([
+            html.Th("Stat"), html.Th("Value")
+        ])),]
+
+        for col in ranked_feats:
+            typ        = f_typs[col]
+            is_numeric = np.issubdtype(typ, np.number)
+            is_date    = np.issubdtype(typ, np.datetime64)
+
+            tbod = []
+                # Assemble the feature metadata tooltip
+            if (is_numeric or is_date):
+                # Feature importance metadata
+                if (importance is not None):
+                    imp = float(imp_df[imp_df['Feature']==col]['Median'])
+                    tip = html.Tr([
+                        html.Td('importance'),
+                        html.Td(f"{imp:.3f}")
+                    ])
+                    tbod.append(tip)
+                # Feature distribution metadata
+                stats = stats_numeric[col]
+                for name,val in stats.items():
+                    tip = html.Tr([
+                        html.Td(name),
+                        html.Td(f"{val:.3f}")
+                    ])
+                    tbod.append(tip)
+                tbod = [html.Tbody(tbod)]
+                # Don't use comma separated list
+                tips = dbc.Table(head + tbod)
+
+                uid  = str(uuid1())
+                field = html.Div(
+                    [
+                        html.Div(col, id=uid, className='sim-slider-name'),
+                        dbc.Tooltip(
+                            tips, target=uid, placement='right', className='sim-tooltip'
+                        ),
+                        dbc.Input(
+                            id          = {'role':'feature', 'column':col},
+                            type        = 'number',
+                            value       = stats['50%'],
+                            placeholder = stats['50%'],
+                            className   = 'sim-slider-num'
+                            # can't figure out validation tied to `step`
+                        )
+                    ],
+                    className="sim-slider"
+                )
+
+            else:
+                uniques = stats_categoric[col]
+                options = [dict(label=f"{name}: {val*100:.1f}%", value=name) for name,val in uniques.items()]
+                # Uniques seem to be ordered by count.
+                value   = list(uniques.keys())[0]
+                uid  = str(uuid1())
+
+                # Feature importance metadata
+                if (importance is not None):
+                    imp = float(imp_df[imp_df['Feature']==col]['Median'])
+                    tip = html.Tr([
+                        html.Td('importance'),
+                        html.Td(f"{imp:.3f}")
+                    ])
+                    tbod.append(tip)
+                tbod = [html.Tbody(tbod)]
+                # Don't use comma separated list
+                tips = dbc.Table(head + tbod)
+
+                field = html.Div(
+                    [
+                        html.Div(col, id=uid, className='sim-slider-name'),
+                        dbc.Tooltip(
+                            tips, target=uid, placement='right', className='sim-tooltip'
+                        ),
+                        dbc.InputGroup(
+                            dbc.Select(
+                                id={'role':'feature', 'column':col},
+                                options=options, value=value, style={"borderRadius":"10px"}
+                            ),
+                            size="sm", className='ctrl_chart ctr',
+                            style={"width":"40%", "marginLeft":"50px"}
+                        )
+                    ],
+                    className="sim-slider"
+                )
+            f_kids.append(field)
+    return [
         # Tried to put submit button below fields, but div heights tricky
         html.Div(
             dbc.InputGroup(
                 [
                     dbc.Button(
                         [
-                            DashIconify(icon="icon-park-twotone:experiment",width=18,height=18, className='ico-flask')
-                            , " Simulate"
+                            DashIconify(
+                                icon="icon-park-twotone:experiment",
+                                width=18,
+                                height=18,
+                                className='ico-flask',
+                            ),
+                            " Simulate",
                         ],
-                        outline=True, n_clicks=0, 
-                        id="sim_button", className='chart_button ctr',
+                        outline=True,
+                        n_clicks=0,
+                        id="sim_button",
+                        className='chart_button ctr',
                     ),
                 ],
-                size="md", className='ctrl_chart ctr'
-            ), 
-            className='sim-btn-block'
+                size="md",
+                className='ctrl_chart ctr',
+            ),
+            className='sim-btn-block',
         ),
-        html.Div(f_kids, className='sim-features')
+        html.Div(f_kids, className='sim-features'),
     ]
-    return kids
 
 """
 Need both the value and id column name to construct df. 
@@ -274,13 +279,11 @@ def prediction_from_features(
     , model_id:int
     , preds:list
 ):       
-    # Remember, n_clicks resets when changing model dropdown
-    if (n_clicks==0): 
+    if (n_clicks==0):
         raise PreventUpdate
-    else:
-        sim_null = None
-        if (preds is None):
-            preds = []
+    sim_null = None
+    if (preds is None):
+        preds = []
 
     # Construct records from feature fields
     record = {}
@@ -306,7 +309,7 @@ def prediction_from_features(
         predictor      = model,
         input_datasets = [new_dset]
     )
-    
+
     # Information for the card body
     queue = prediction.predictor.job.queue
     label = queue.splitset.label
@@ -388,17 +391,14 @@ def prediction_from_features(
 def flip_pred_star(n_clicks, id):
     if (n_clicks is None):
         raise PreventUpdate
-    
+
     prediction_id = id['pred_id']
     Prediction.get_by_id(prediction_id).flip_star()
     # Don't use stale, pre-update, in-memory data
     starred = Prediction.get_by_id(prediction_id).is_starred
-    if (starred==False):
-        icon = "clarity:star-line"
-    else:
-        icon = "clarity:star-solid"
+    icon = "clarity:star-line" if (starred==False) else "clarity:star-solid"
     star = DashIconify(icon=icon, width=20, height=20)
-    
+
     # The callback kept firing preds were updated
     n_clicks = None
     return star, n_clicks

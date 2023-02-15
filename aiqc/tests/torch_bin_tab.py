@@ -12,23 +12,18 @@ from sklearn.preprocessing import PowerTransformer, LabelBinarizer
 
 
 def fn_build(features_shape, label_shape, **hp):
-	model = nn.Sequential(
+	return nn.Sequential(
 		nn.Linear(features_shape[-1], 12),
-		nn.BatchNorm1d(12,12),
+		nn.BatchNorm1d(12, 12),
 		nn.ReLU(),
 		nn.Dropout(p=0.5),
-
 		nn.Linear(12, label_shape[-1]),
-		nn.Sigmoid()
+		nn.Sigmoid(),
 	)
-	return model
 
 
 def fn_optimize(model, **hp):
-	optimizer = Adamax(
-		model.parameters(), lr=hp['learning_rate']
-	)
-	return optimizer
+	return Adamax(model.parameters(), lr=hp['learning_rate'])
 
 
 def fn_train(
@@ -51,9 +46,9 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 		"learning_rate": [0.01]
 		, "epoch_count": [10]
 	}
-	
+
 	file_path = datum.get_path('sonar.csv')
-	
+
 	shared_dataset = Dataset.Tabular.from_path(
 		file_path = file_path
 	)
@@ -79,21 +74,19 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 			fold_count      = fold_count
 		)
 	)
-	
-	experiment = Experiment(
+
+	return Experiment(
 		Architecture(
-			library           = "pytorch"
-			, analysis_type   = "classification_binary"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="pytorch",
+			analysis_type="classification_binary",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline       = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-			, search_percent  = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment

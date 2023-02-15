@@ -5,6 +5,7 @@ Create `/aiqc` app_dirs (an os-agnostic folder).
 Create `config.json` for storing settings.
 Create `aiqc.sqlite3` database.
 """
+
 # Python modules
 from os import path, makedirs, name, system, access, remove, R_OK, W_OK
 from sys import version, modules, prefix
@@ -36,8 +37,8 @@ app_folders = dict(
     , cache_tests   = cache_tests_dir
 )
 
-default_config_path = app_dir + "config.json"
-default_db_path     = app_dir + "aiqc.sqlite3"
+default_config_path = f"{app_dir}config.json"
+default_db_path = f"{app_dir}aiqc.sqlite3"
 
 def timezone_name():
     return dt.datetime.now(dt.timezone.utc).astimezone().tzname()
@@ -46,7 +47,7 @@ def timezone_name():
 def timezone_now(as_str:bool=False):
     """Infers timezone from user's OS. It knows EDT vs EST."""
     now = dt.datetime.now(dt.timezone.utc).astimezone()
-    if (as_str==True):
+    if as_str:
         now = str(now.strftime('%Y%b%d_%H:%M:%S'))
     return now
 
@@ -68,68 +69,66 @@ def create_folder(directory:str=None):
 
 
 def check_permissions_folder():
-    if (path.exists(app_dir)):
+    if not (path.exists(app_dir)):
+        return False
         # Windows `access()` always returning True even when I have verify permissions are in fact denied.
-        if (name == 'nt'):
-            # Test write.
-            file_name = "aiqc_test_permissions.txt"
-            
-            def permissions_fail_info():
-                # We don't want an error here because it needs to return False.
-                print(
-                    f"└── Yikes - your operating system user does not have permission to write to file path:\n{app_dir}\n\n" \
-                    f"└── Fix - you can attempt to fix this by running `aiqc.config.grant_permissions_folder()`.\n"
-                )
+    if (name == 'nt'):
+        # Test write.
+        file_name = "aiqc_test_permissions.txt"
 
+        def permissions_fail_info():
+            # We don't want an error here because it needs to return False.
+            print(
+                f"└── Yikes - your operating system user does not have permission to write to file path:\n{app_dir}\n\n" \
+                f"└── Fix - you can attempt to fix this by running `aiqc.config.grant_permissions_folder()`.\n"
+            )
+
+        try:
+            cmd_file_create = f'echo "test" >> {app_dir}{file_name}'
+            write_response  = system(cmd_file_create)
+        except:
+            permissions_fail_info()
+            return False
+
+        if (write_response != 0):
+            permissions_fail_info()
+            return False
+        else:
+                # Test read.
             try:
-                cmd_file_create = 'echo "test" >> ' + app_dir + file_name
-                write_response  = system(cmd_file_create)
+                read_response = system(f"type {app_dir}{file_name}")
             except:
                 permissions_fail_info()
                 return False
 
-            if (write_response != 0):
+            if (read_response != 0):
                 permissions_fail_info()
                 return False
             else:
-                # Test read.
-                try:
-                    read_response = system("type " + app_dir + file_name)
-                except:
-                    permissions_fail_info()
-                    return False
-
-                if (read_response != 0):
-                    permissions_fail_info()
-                    return False
-                else:
-                    cmd_file_delete = "erase " + app_dir + file_name
-                    system(cmd_file_delete)
-                    msg = f"\n└── Success - your operating system user can read from and write to file path:\n{app_dir}\n"
-                    print(msg)
-                    return True
-
-        else:
-            # posix
-            # https://www.geeksforgeeks.org/python-os-access-method/
-            readable  = access(app_dir, R_OK)
-            writeable = access(app_dir, W_OK)
-
-            if (readable and writeable):
+                cmd_file_delete = f"erase {app_dir}{file_name}"
+                system(cmd_file_delete)
+                msg = f"\n└── Success - your operating system user can read from and write to file path:\n{app_dir}\n"
+                print(msg)
                 return True
-            else:
-                if not readable:
-                    msg = f"\n└── Yikes - your operating system user does not have permission to read from file path:\n{app_dir}\n"
-                    print(msg)
-                if not writeable:
-                    msg = f"\n└── Yikes - your operating system user does not have permission to write to file path:\n{app_dir}\n"
-                    print(msg)
-                if not readable or not writeable:
-                    msg = "\n└── Fix - you can attempt to fix this by running `aiqc.config.grant_permissions_folder()`.\n"
-                    print(msg)
-                    return False
+
     else:
-        return False
+        # posix
+        # https://www.geeksforgeeks.org/python-os-access-method/
+        readable  = access(app_dir, R_OK)
+        writeable = access(app_dir, W_OK)
+
+        if (readable and writeable):
+            return True
+        if not readable:
+            msg = f"\n└── Yikes - your operating system user does not have permission to read from file path:\n{app_dir}\n"
+            print(msg)
+        if not writeable:
+            msg = f"\n└── Yikes - your operating system user does not have permission to write to file path:\n{app_dir}\n"
+            print(msg)
+        if not readable or not writeable:
+            msg = "\n└── Fix - you can attempt to fix this by running `aiqc.config.grant_permissions_folder()`.\n"
+            print(msg)
+            return False
 
 
 def grant_permissions_folder():
@@ -140,26 +139,23 @@ def grant_permissions_folder():
                 # Windows ICACLS permissions: https://www.educative.io/edpresso/what-is-chmod-in-windows
                 # Works in Windows Command Prompt and `system()`, but not PowerShell.
                 # Does not work with trailing backslashes \\
-                command = 'icacls "' + app_dir_no_trailing_slash + '" /grant users:(F) /c'
-                system(command)
-            elif (name != 'nt'):
+                command = f'icacls "{app_dir_no_trailing_slash}" /grant users:(F) /c'
+            else:
                 # posix
                 command = 'chmod +wr ' + '"' + app_dir + '"'
-                system(command)
+            system(command)
         except:
             print(
                 f"└── Yikes - error failed to execute this system command:\n{command}\n\n" \
                 f"===================================\n"
             )
             raise
-        
-        permissions = check_permissions_folder()
-        if permissions:
+
+        if permissions := check_permissions_folder():
             msg = f"\n└── Success - granted system permissions to read and write from file path:\n{app_dir}\n"
-            print(msg)
         else:
             msg = f"\n└── Yikes - failed to grant system permissions to read and write from file path:\n{app_dir}\n"
-            print(msg)
+        print(msg)
 
 
 #==================================================
@@ -169,8 +165,7 @@ def get_config():
     config_exists = path.exists(default_config_path)
     if (config_exists==True):
         with open(default_config_path, 'r') as aiqc_config_file:
-            aiqc_config = load(aiqc_config_file)
-            return aiqc_config
+            return load(aiqc_config_file)
     else: 
         """
         The first step is import orm, which calls get_db(), which calls get_config()
@@ -182,61 +177,60 @@ def get_config():
 
 def create_config():
     #check if folder exists
-    if (path.exists(app_dir)):
-        config_exists = path.exists(default_config_path)
-        if not config_exists:
-            # Dont use `dict()` because of the `.()` names
-            aiqc_config = {
-                "timezone_name"                      : timezone_name()
-                , "created_at"                       : timezone_now(as_str=True)
-                , "config_path"                      : default_config_path
-                , "db_path"                          : default_db_path
-                , "sys.version"                      : version
-                , "platform.python_implementation()" : platform.python_implementation()
-                , "sys.prefix"                       : prefix
-                , "name"                             : name
-                , "platform.version()"               : platform.version()
-                , "platform.java_ver()"              : platform.java_ver()
-                , "platform.win32_ver()"             : platform.win32_ver()
-                , "platform.libc_ver()"              : platform.libc_ver()
-                , "platform.mac_ver()"               : platform.mac_ver()
-            }
-            
-            try:
-                with open(default_config_path, 'w') as aiqc_config_file:
-                    dump(aiqc_config, aiqc_config_file)
-            except:
-                print(
-                    f"└── Yikes - failed to create config file at path:\n{default_config_path}\n\n" \
-                    f"└── Fix - you can attempt to fix this by running `aiqc.config.check_permissions_folder()`.\n" \
-                    f"==================================="
-                )
-                raise
-            importlib_reload(modules[__name__])
+    if not (path.exists(app_dir)):
+        return
+    config_exists = path.exists(default_config_path)
+    if not config_exists:
+        # Dont use `dict()` because of the `.()` names
+        aiqc_config = {
+            "timezone_name"                      : timezone_name()
+            , "created_at"                       : timezone_now(as_str=True)
+            , "config_path"                      : default_config_path
+            , "db_path"                          : default_db_path
+            , "sys.version"                      : version
+            , "platform.python_implementation()" : platform.python_implementation()
+            , "sys.prefix"                       : prefix
+            , "name"                             : name
+            , "platform.version()"               : platform.version()
+            , "platform.java_ver()"              : platform.java_ver()
+            , "platform.win32_ver()"             : platform.win32_ver()
+            , "platform.libc_ver()"              : platform.libc_ver()
+            , "platform.mac_ver()"               : platform.mac_ver()
+        }
+
+        try:
+            with open(default_config_path, 'w') as aiqc_config_file:
+                dump(aiqc_config, aiqc_config_file)
+        except:
+            print(
+                f"└── Yikes - failed to create config file at path:\n{default_config_path}\n\n" \
+                f"└── Fix - you can attempt to fix this by running `aiqc.config.check_permissions_folder()`.\n" \
+                f"==================================="
+            )
+            raise
+        importlib_reload(modules[__name__])
 
 
 def delete_config(confirm:bool=False):
     aiqc_config = get_config()
     if aiqc_config is None:
-        msg = "\n└── Info - skipping as there is no config file to delete.\n"
+        print("\n└── Info - skipping as there is no config file to delete.\n")
+    elif confirm:
+        config_path = aiqc_config['config_path']
+        try:
+            remove(config_path)
+        except:
+            print(
+                f"└── Yikes - failed to delete config file at path:\n{config_path}\n\n" \
+                f"===================================\n" \
+            )
+            raise
+        msg = f"\n└── Success - deleted config file at path:\n{config_path}\n"
         print(msg)
+        importlib_reload(modules[__name__])
     else:
-        if confirm:
-            config_path = aiqc_config['config_path']
-            try:
-                remove(config_path)
-            except:
-                print(
-                    f"└── Yikes - failed to delete config file at path:\n{config_path}\n\n" \
-                    f"===================================\n" \
-                )
-                raise
-            msg = f"\n└── Success - deleted config file at path:\n{config_path}\n"
-            print(msg)
-            importlib_reload(modules[__name__])   
-        else:
-            msg = "\n└── Info - skipping deletion because `confirm` arg not set to boolean `True`.\n"
-            print(msg)
+        msg = "\n└── Info - skipping deletion because `confirm` arg not set to boolean `True`.\n"
+        print(msg)
 
 
 def update_config(kv:dict):

@@ -21,8 +21,7 @@ def fn_build(features_shape, label_shape, **hp):
 
 
 def fn_optimize(**hp):
-	optimizer = tf.keras.optimizers.RMSprop()
-	return optimizer
+	return tf.keras.optimizers.RMSprop()
 
 
 def fn_train(
@@ -60,7 +59,7 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 	df['nox'][5] = np.NaN
 	df['indus'][10] = np.NaN
 	df['age'][19] = np.NaN
-	
+
 	shared_dataset = Dataset.Tabular.from_df(dataframe=df)
 
 	pipeline = Pipeline(
@@ -85,7 +84,7 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 				)
 			]
 		),
-		
+
 		Target(
 			dataset = shared_dataset,
 			column = 'price',
@@ -102,27 +101,25 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 				)
 			) 
 		),
-		
+
 		Stratifier(
 			size_test       = 0.11, 
 			size_validation = 0.21,
 			fold_count      = fold_count
 		)    
 	)
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "keras"
-			, analysis_type   = "regression"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="keras",
+			analysis_type="regression",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline       = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-			, search_percent  = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment

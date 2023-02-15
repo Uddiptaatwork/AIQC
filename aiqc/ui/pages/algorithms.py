@@ -46,27 +46,28 @@ layout = [
 # Helper functions for callbacks.
 def fetch_params(predictor:object, size:str):
     hyperparameters = predictor.get_hyperparameters()
-    if (hyperparameters is not None):
-        headers      = [html.Th("parameter"), html.Th("value")]
-        table_header = [html.Thead(html.Tr(headers), className='thead')]
-        # bools are not rendering so need to force them to str
-        rows = []
-        for k,v in hyperparameters.items():
-            if isinstance(v,bool):
-                v = str(v) 
-            rows.append(
-                html.Tr([html.Td(k), html.Td(v)])
-            )
-        table_body = [html.Tbody(rows)]
-        hp_table   = dbc.Table(
-            table_header + table_body,
-            dark=True, hover=True, responsive=True,
-            striped=True, bordered=False, className=f"tbl {size} ctr"
+    if hyperparameters is None:
+        return dbc.Alert("Sorry - This model has no parameters.", className='alert')
+    headers      = [html.Th("parameter"), html.Th("value")]
+    table_header = [html.Thead(html.Tr(headers), className='thead')]
+    # bools are not rendering so need to force them to str
+    rows = []
+    for k,v in hyperparameters.items():
+        if isinstance(v,bool):
+            v = str(v) 
+        rows.append(
+            html.Tr([html.Td(k), html.Td(v)])
         )
-    else:
-        msg = "Sorry - This model has no parameters."
-        hp_table = dbc.Alert(msg, className='alert')
-    return hp_table
+    table_body = [html.Tbody(rows)]
+    return dbc.Table(
+        table_header + table_body,
+        dark=True,
+        hover=True,
+        responsive=True,
+        striped=True,
+        bordered=False,
+        className=f"tbl {size} ctr",
+    )
 
 
 """
@@ -125,13 +126,10 @@ def model_plots(predictor_ids:list):
 
     multi_cols = []
     for predictor_id in predictor_ids:
-        # Only `big_column` is assigned a bootstrap width.
-        big_column = []
-
         predictor   = Predictor.get_by_id(predictor_id)
         predictions = list(predictor.predictions)
         if (not predictions):
-            msg = f"Sorry - Metrics for this model are not ready yet. Data will refresh automatically."
+            msg = "Sorry - Metrics for this model are not ready yet. Data will refresh automatically."
             return dbc.Col(dbc.Alert(msg, className='alert'))
         prediction = predictions[0]
 
@@ -147,8 +145,7 @@ def model_plots(predictor_ids:list):
             , className = 'star'
         )
         name = html.P([star, f"Model: {predictor_id}"], className="header")
-        big_column.append(name)
-
+        big_column = [name]
         # === METRICS ===
         metrics = prediction.metrics
         # Need the 'split' to be in the same dict as the metrics.
@@ -157,7 +154,7 @@ def model_plots(predictor_ids:list):
             if (metrix is not None):
                 split_dikt = {'split':split}
                 # We want the split to appear first in the dict
-                split_dikt.update(metrix)
+                split_dikt |= metrix
                 metrics_records.append(split_dikt)
         cols         = list(metrics_records[0].keys())
         headers      = [html.Th(c) for c in cols]
@@ -171,7 +168,7 @@ def model_plots(predictor_ids:list):
         rows = []
         for cells in metrics_raw:
             row = html.Tr([html.Td(cell) for cell in cells]) 
-            rows.append(row)            
+            rows.append(row)
         table_body    = [html.Tbody(rows)]
         metrics_table = dbc.Table(
             table_header + table_body
@@ -186,17 +183,13 @@ def model_plots(predictor_ids:list):
         row = dbc.Row(
             dbc.Col(metrics_table, align="center")
         )
-        big_column.append(row)
-        big_column.append(html.Hr(className='hrz ctr'))
-
+        big_column.extend((row, html.Hr(className='hrz ctr')))
         # === HYPERPARAMETERS ===
         hp_table = fetch_params(predictor, "tsmall")
         row = dbc.Row(
             dbc.Col(hp_table, align="center")
         )
-        big_column.append(row)
-        big_column.append(html.Hr(className='hrz ctr'))
-
+        big_column.extend((row, html.Hr(className='hrz ctr')))
         # === LEARNING ===
         learning_curves = predictor.plot_learning_curve(
             call_display=False, skip_head=False
@@ -207,25 +200,21 @@ def model_plots(predictor_ids:list):
                 dbc.Col(learning_curves, id="learning_plots"),
             ]
         )
-        big_column.append(row)
-        big_column.append(html.Hr(className='hrz ctr'))
-
+        big_column.extend((row, html.Hr(className='hrz ctr')))
         # === IMPORTANCE ===
         feature_importance = prediction.feature_importance
         if (feature_importance is not None):
             prediction = Predictor.get_by_id(predictor_id).predictions[0]
             content    = prediction.plot_feature_importance(top_n=15, call_display=False)
             content    = [dcc.Graph(figure=fig, className='plots ctr') for fig in content]
-        elif (feature_importance is None):
+        else:
             msg = "Feature importance not calculated for model yet."
             content = dbc.Alert(msg, className='alert')
 
         row = dbc.Row(
             dbc.Col(content, id="importance_plots")
         )
-        big_column.append(row)
-        big_column.append(html.Hr(className='hrz ctr'))
-
+        big_column.extend((row, html.Hr(className='hrz ctr')))
         # === CLASSIFICATION ===
         analysis_type = predictor.job.queue.algorithm.analysis_type
         if ('classification' in analysis_type):
@@ -235,25 +224,21 @@ def model_plots(predictor_ids:list):
             row = dbc.Row(
                 dbc.Col(roc, align="center")
             )
-            big_column.append(row)
-            big_column.append(html.Hr(className='hrz ctr'))
+            big_column.extend((row, html.Hr(className='hrz ctr')))
             # === PRC ===
             pr = prediction.plot_precision_recall(call_display=False)
             pr = dcc.Graph(figure=pr, className='plots ctr')
             row = dbc.Row(
                 dbc.Col(pr, align="center")
             )
-            big_column.append(row)
-            big_column.append(html.Hr(className='hrz ctr'))
+            big_column.extend((row, html.Hr(className='hrz ctr')))
             # === CONFUSION ===
             cms = prediction.plot_confusion_matrix(call_display=False)
-            cms = [dcc.Graph(figure=fig, className='plots ctr') for fig in cms]                
+            cms = [dcc.Graph(figure=fig, className='plots ctr') for fig in cms]
             row = dbc.Row(
                 dbc.Col(cms, align="center")
             )
-            big_column.append(row)
-            big_column.append(html.Br())
-            big_column.append(html.Br())
+            big_column.extend((row, html.Br(), html.Br()))
         big_column = dbc.Col(big_column, width=col_width)
         multi_cols.append(big_column)
     return multi_cols
@@ -270,15 +255,12 @@ def model_plots(predictor_ids:list):
 def flip_model_star(n_clicks, id):
     if (n_clicks is None):
         raise PreventUpdate
-    
+
     predictor_id = id['predictor_id']
     Predictor.get_by_id(predictor_id).flip_star()
     # Don't use stale, pre-update, in-memory data
     starred = Predictor.get_by_id(predictor_id).is_starred
-    if (starred==False):
-        icon = "clarity:star-line"
-    else:
-        icon = "clarity:star-solid"
+    icon = "clarity:star-line" if (starred==False) else "clarity:star-solid"
     star = DashIconify(icon=icon, width=20, height=20)
     # The callback kept firing preds were updated
     n_clicks = None

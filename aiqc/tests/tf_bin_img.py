@@ -89,23 +89,23 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count=None):
 
 	# Takes a while to run, but it tests both `from_urls` and `datum` functionality
 	image_urls = datum.get_remote_urls(manifest_name='brain_tumor.csv')
-	
+
 	# Just ensuring we test all forms of ingestion.
 	if (fold_count is None):
 		feature_dataset = Dataset.Image.from_urls(urls=image_urls)
 	else:
 		feature_dataset = Dataset.Image.from_urls(urls=image_urls, ingest=False)
-	
+
 	pipeline = Pipeline(
 		Input(
 			dataset  = feature_dataset
 		),
-		
+
 		Target(
 			dataset = label_dataset,
 			column = "status"
 		),
-		
+
 		Stratifier(
 			size_test       = 0.11, 
 			size_validation = 0.21,
@@ -113,20 +113,18 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count=None):
 		)    
 	)
 
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "keras"
-			, analysis_type   = "classification_binary"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="keras",
+			analysis_type="classification_binary",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline          = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-			, search_percent  = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment

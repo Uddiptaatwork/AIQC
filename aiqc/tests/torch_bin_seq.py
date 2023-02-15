@@ -9,6 +9,7 @@ from sklearn.preprocessing import StandardScaler
 
 def fn_build(features_shape, label_shape, **hp):
 	# LSTM() returns tuple of (tensor, (recurrent state))
+
 	class extract_tensor(nn.Module):
 		def forward(self,x):
 			# Output shape (batch, features, hidden)
@@ -16,17 +17,16 @@ def fn_build(features_shape, label_shape, **hp):
 			# Reshape shape (batch, hidden)
 			return tensor[:, -1, :]
 
-	model = nn.Sequential(
+	return nn.Sequential(
 		nn.LSTM(
-			input_size = features_shape[-1],
-			hidden_size = hp['hidden'],
-			batch_first = True
+			input_size=features_shape[-1],
+			hidden_size=hp['hidden'],
+			batch_first=True,
 		),
 		extract_tensor(),
 		nn.Linear(hp['hidden'], label_shape[-1]),
 		nn.Sigmoid(),
 	)
-	return model
 
 
 def fn_train(
@@ -49,11 +49,11 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 		, batch_size = [8]
 		, epochs     = [5]
 	)
-	
+
 	df = datum.to_df('epilepsy.parquet')
 	label_df = df[['seizure']]
 	label_dataset = Dataset.Tabular.from_df(label_df)
-	
+
 	seq_ndarray3D = df.drop(columns=['seizure']).to_numpy().reshape(1000,178,1)
 	feature_dataset = Dataset.Sequence.from_numpy(seq_ndarray3D)
 
@@ -62,31 +62,29 @@ def make_queue(repeat_count:int=1, fold_count:int=None, permute_count:int=2):
 			dataset  = feature_dataset,
 			encoders = Input.Encoder(sklearn_preprocess=StandardScaler())
 		),
-		
+
 		Target(
 			dataset = label_dataset
 		),
-		
+
 		Stratifier(
 			size_test       = 0.12, 
 			size_validation = 0.22,
 			fold_count      = fold_count
 		)    
 	)
-	experiment = Experiment(
+	return Experiment(
 		Architecture(
-			library           = "pytorch"
-			, analysis_type   = "classification_binary"
-			, fn_build        = fn_build
-			, fn_train        = fn_train
-			, hyperparameters = hyperparameters
+			library="pytorch",
+			analysis_type="classification_binary",
+			fn_build=fn_build,
+			fn_train=fn_train,
+			hyperparameters=hyperparameters,
 		),
-		
 		Trainer(
-			pipeline       = pipeline
-			, repeat_count    = repeat_count
-			, permute_count   = permute_count
-			, search_percent  = None
-		)
+			pipeline=pipeline,
+			repeat_count=repeat_count,
+			permute_count=permute_count,
+			search_percent=None,
+		),
 	)
-	return experiment

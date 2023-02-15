@@ -18,7 +18,7 @@ metrics_regress = dict(
     , explained_variance = 'ExpVar'
 )
 metrics_regress_cols = list(metrics_regress.keys())
-metrics_all          = {**metrics_classify, **metrics_regress}
+metrics_all = metrics_classify | metrics_regress
 
 
 def display_name(score_type:str):
@@ -26,7 +26,7 @@ def display_name(score_type:str):
     score_display = sub("_", " ", score_type)
     if (score_display == "r2"):
         score_display = "R²"
-    elif ((score_display=="roc auc") or (score_display=="mse")):
+    elif score_display in ["roc auc", "mse"]:
         score_display = score_display.upper()
     else:
         score_display = score_display.title()
@@ -46,10 +46,15 @@ def split_classification_metrics(labels_processed, predictions, probabilities, a
         average         = "weighted"
         roc_average     = "weighted"
         roc_multi_class = "ovr"
-        
-    split_metrics = {}		
-    # Let the classification_multi labels hit this metric in OHE format.
-    split_metrics['roc_auc'] = metrics.roc_auc_score(labels_processed, probabilities, average=roc_average, multi_class=roc_multi_class)
+
+    split_metrics = {
+        'roc_auc': metrics.roc_auc_score(
+            labels_processed,
+            probabilities,
+            average=roc_average,
+            multi_class=roc_multi_class,
+        )
+    }
     # Then convert the classification_multi labels ordinal format.
     if (analysis_type == "classification_multi"):
         labels_processed = np.argmax(labels_processed, axis=1)
@@ -63,7 +68,6 @@ def split_classification_metrics(labels_processed, predictions, probabilities, a
 
 def split_regression_metrics(data, predictions):
     """Be sure to register any new metrics in `metrics_regress` global."""
-    split_metrics = {}
     data_shape = data.shape
     # Unsupervised sequences and images have many data points for a single sample.
     # These metrics only work with 2D data, and all we are after is comparing each number to the real number.
@@ -76,8 +80,7 @@ def split_regression_metrics(data, predictions):
     elif (len(data_shape) == 3):
         data        = data.reshape(data_shape[0]*data_shape[1], data_shape[2])
         predictions = predictions.reshape(data_shape[0]*data_shape[1], data_shape[2])
-    # These predictions are not persisted. Only used for metrics.
-    split_metrics['r2']                 = metrics.r2_score(data, predictions)
+    split_metrics = {'r2': metrics.r2_score(data, predictions)}
     split_metrics['mse']                = metrics.mean_squared_error(data, predictions)
     split_metrics['explained_variance'] = metrics.explained_variance_score(data, predictions)
     return split_metrics

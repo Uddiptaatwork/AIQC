@@ -136,30 +136,29 @@ class Pipeline:
         if (target is not None):
             l_id      = target.id
             l_dset_id = target.dataset.id
-        elif (target is None):
+        else:
             # Need to know if label exists so it can be excluded.
             l_id      = None
             l_dset_id = None
-        
+
         features = []
         feature_ids = []
         for i in inputs:
             f_dset_id = i.dataset.id
-           
+
             exclude_columns = i.exclude_columns
             include_columns = i.include_columns
             # For shared datasets, remove any label columns from featureset
             if (f_dset_id==l_dset_id):
                 l_cols = target.column
-                
-                if ((exclude_columns==None) and (include_columns==None)):
+
+                if exclude_columns is None and include_columns is None:
                     exclude_columns = l_cols
-                # Both can't be set based on Feature logic
                 elif (exclude_columns is not None):
                     for c in l_cols:
                         if (c not in exclude_columns):
                             exclude_columns.append(c)
-                elif (include_columns is not None):
+                else:
                     for c in l_cols:
                         if (c in include_columns):
                             include_columns.remove(c)
@@ -186,7 +185,7 @@ class Pipeline:
                 for fc in encoders:
                     kwargz = fc.__dict__
                     FeatureCoder.from_feature(feature_id=f_id, **kwargz)
-            
+
             reshape_indices = i.reshape_indices
             if (reshape_indices is not None):
                 FeatureShaper.from_feature(feature_id=f_id, reshape_indices=reshape_indices)
@@ -194,23 +193,22 @@ class Pipeline:
         if (stratifier is None):
             # Initialize with Nones
             stratifier = Stratifier()
-        
+
         if (_predictor is not None):
             # Has to be `_predictor` because that's the argument the class accepts
             _predictor = _predictor.id
 
-        splitset = Splitset.make(
-            feature_ids 	  = feature_ids
-            , label_id 		  = l_id
-            , size_test 	  = stratifier.size_test
-            , size_validation = stratifier.size_validation
-            , bin_count 	  = stratifier.bin_count
-            , fold_count 	  = stratifier.fold_count
-            , name 			  = name
-            , description 	  = description
-            , _predictor_id   = _predictor
+        return Splitset.make(
+            feature_ids=feature_ids,
+            label_id=l_id,
+            size_test=stratifier.size_test,
+            size_validation=stratifier.size_validation,
+            bin_count=stratifier.bin_count,
+            fold_count=stratifier.fold_count,
+            name=name,
+            description=description,
+            _predictor_id=_predictor,
         )
-        return splitset
 
 #==================================================
 # EXPERIMENT
@@ -276,17 +274,14 @@ class Experiment:
                 , search_count    = trainer.search_count
                 , search_percent  = trainer.search_percent
             ).id
-        elif (hyperparameters is None):
+        else:
             h_id = None
 
         kwargz = trainer.__dict__
         del kwargz['search_count'], kwargz['search_percent']
-        queue = Queue.from_algorithm(
-            algorithm_id = architecture.id
-            , hyperparamset_id = h_id
-            , **kwargz
+        return Queue.from_algorithm(
+            algorithm_id=architecture.id, hyperparamset_id=h_id, **kwargz
         )
-        return queue
 
 #==================================================
 # INFERENCE
@@ -311,7 +306,7 @@ class Inference:
         else:
             target = None
 
-        inputs = []	
+        inputs = []
         for e, f in enumerate(old_splitset.features):		
             cols = f.columns
             dataset = input_datasets[e]
@@ -346,5 +341,4 @@ class Inference:
             , stratifier = Stratifier()
             , _predictor = predictor
         )
-        prediction = pipeline.infer()
-        return prediction
+        return pipeline.infer()

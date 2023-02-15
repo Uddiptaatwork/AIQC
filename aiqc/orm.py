@@ -72,11 +72,8 @@ from torch import long, FloatTensor
 def get_path_db():
     from .utils.config import get_config
     aiqc_config = get_config()
-    if (aiqc_config is None):
-        pass# get_config() will print a null condition.
-    else:
-        db_path = aiqc_config['db_path']
-        return db_path
+    if aiqc_config is not None:
+        return aiqc_config['db_path']
 
 
 def get_db():
@@ -97,15 +94,13 @@ def get_db():
 
         - Tried `'foreign_keys':1` to get `on_delete='CASCADE'` working, but it didn't work.
         """
-        db = SqliteExtDatabase(path, pragmas={})
-        return db
+        return SqliteExtDatabase(path, pragmas={})
 
 
 def create_db():
     # Future: Could let the user specify their own db name, for import tutorials. Could check if passed as an argument to create_config?
     db_path = get_path_db()
-    db_exists = path.exists(db_path)
-    if db_exists:
+    if db_exists := path.exists(db_path):
         db = get_db()
     else:
         # Create sqlite file for db.
@@ -120,7 +115,7 @@ def create_db():
             )
             raise
         print(f"\n└── 📁 Success - created database file at path:\n{db_path}\n")	
-    
+
     # Create tables inside db.
     tables = db.get_tables()
     table_count = len(tables)
@@ -145,10 +140,9 @@ def create_db():
 
 
 def destroy_db(confirm:bool=False, rebuild:bool=False):
-    if (confirm==True):
+    if confirm:
         db_path = get_path_db()
-        db_exists = path.exists(db_path)
-        if db_exists:
+        if db_exists := path.exists(db_path):
             try:
                 remove(db_path)
             except:
@@ -162,7 +156,7 @@ def destroy_db(confirm:bool=False, rebuild:bool=False):
             print(f"\n└── Info - there is no file to delete at path:\n{db_path}\n")
         imp_reload(modules[__name__])
 
-        if (rebuild==True):
+        if rebuild:
             create_db()
     else:
         print("\n└── Info - skipping destruction because `confirm` arg not set to boolean `True`.\n")
@@ -256,13 +250,12 @@ def dataset_matchVersion(name:str, typ:str):
 
 def dataset_matchHash(hash:str, latest_match:object, name:str=None):
     """Runs prior to Dataset creation, so it can't be placed inside Dataset class"""
-    if ((name is not None) and (latest_match is not None)):
-        if (hash == latest_match.sha256_hexdigest):
-            msg = f"\n└── Info - Hashes identical to `Dataset.version={latest_match.version}`.\nReusing & returning that Dataset instead of creating duplicate version.\n"
-            print(msg)
-            return latest_match
-    else:
+    if name is None or latest_match is None:
         return None
+    if (hash == latest_match.sha256_hexdigest):
+        msg = f"\n└── Info - Hashes identical to `Dataset.version={latest_match.version}`.\nReusing & returning that Dataset instead of creating duplicate version.\n"
+        print(msg)
+        return latest_match
 
 
 class Dataset(BaseModel):
@@ -290,89 +283,75 @@ class Dataset(BaseModel):
     blob             = BlobField(null=True) # when `is_ingested==False`.
 
 
-    def to_df(id:int, columns:list=None, samples:list=None):
-        dataset = Dataset.get_by_id(id)
+    def to_df(self, columns:list=None, samples:list=None):
+        dataset = Dataset.get_by_id(self)
         if (dataset.typ == 'tabular'):
-            df = Dataset.Tabular.to_df(id=id, columns=columns, samples=samples)
+            df = Dataset.Tabular.to_df(self=self, columns=columns, samples=samples)
         elif (dataset.typ == 'sequence'):
-            df = Dataset.Sequence.to_df(id=id, columns=columns, samples=samples)
+            df = Dataset.Sequence.to_df(self=self, columns=columns, samples=samples)
         elif (dataset.typ == 'image'):
-            df = Dataset.Image.to_df(id=id, columns=columns, samples=samples)
+            df = Dataset.Image.to_df(self=self, columns=columns, samples=samples)
         return df
 
 
-    def to_arr(id:int, columns:list=None, samples:list=None):
-        dataset = Dataset.get_by_id(id)
+    def to_arr(self, columns:list=None, samples:list=None):
+        dataset = Dataset.get_by_id(self)
         if (dataset.typ == 'tabular'):
-            arr = Dataset.Tabular.to_arr(id=id, columns=columns, samples=samples)
+            arr = Dataset.Tabular.to_arr(self=self, columns=columns, samples=samples)
         elif (dataset.typ == 'sequence'):
-            arr = Dataset.Sequence.to_arr(id=id, columns=columns, samples=samples)
+            arr = Dataset.Sequence.to_arr(self=self, columns=columns, samples=samples)
         elif (dataset.typ == 'image'):
-            arr = Dataset.Image.to_arr(id=id, columns=columns, samples=samples)
+            arr = Dataset.Image.to_arr(self=self, columns=columns, samples=samples)
         return arr
 
 
-    def to_pillow(id:int, samples:list=None):
-        dataset = Dataset.get_by_id(id)
+    def to_pillow(self, samples:list=None):
+        dataset = Dataset.get_by_id(self)
         if (dataset.typ == 'image'):
-            image = Dataset.Image.to_pillow(id=id, samples=samples)
-        elif (dataset.typ != 'image'):
+            image = Dataset.Image.to_pillow(self=self, samples=samples)
+        else:
             msg = "\nYikes - Only `Dataset.Image` supports `to_pillow()`\n"
             raise Exception(msg)
         return image
     
 
-    def get_dtypes(id:int, columns:list=None):
+    def get_dtypes(self, columns:list=None):
         """`dtypes` may be a single str, but preprocessing requires dict"""
         columns = listify(columns)
-        dataset = Dataset.get_by_id(id)
+        dataset = Dataset.get_by_id(self)
         if (columns is None):
             columns = dataset.columns
 
         # Only include types of the columns of interest
         dtypes = dataset.dtypes
         if isinstance(dtypes, str):
-            dtypes = {}
-            for c in columns:
-                dtypes[c] = dataset.dtypes
+            dtypes = {c: dataset.dtypes for c in columns}
         elif isinstance(dtypes, dict):
             dtypes = {col:dtypes[col] for col in columns}
         return dtypes
 
 
     class Tabular():
-        def from_df(
-            dataframe:object
-            , rename_columns:list = None
-            , retype:object       = None
-            , description:str     = None
-            , name:str            = None
-            , _source_format:str  = 'dataframe' # from_path and from_arr overwrite
-            , _ingest:bool        = True # from_path may overwrite
-            , _source_path:str    = None # from_path overwrites
-            , _header:object      = None # from_path may overwrite
-        ):
+        def from_df(self, rename_columns:list = None, retype:object       = None, description:str     = None, name:str            = None, _source_format:str  = 'dataframe', _ingest:bool        = True, _source_path:str    = None, _header:object      = None):
             """The internal args `_*` exist because `from_path` & `from_ndarray` call this function."""
-            if (type(dataframe).__name__ != 'DataFrame'):
+            if type(self).__name__ != 'DataFrame':
                 msg = "\nYikes - The `dataframe` you provided is not `type(dataframe).__name__=='DataFrame'`\n"
                 raise Exception(msg)
             latest_match, version_num = dataset_matchVersion(name=name, typ='tabular')
             rename_columns = listify(rename_columns)
 
-            df_validate(dataframe, rename_columns)
+            df_validate(self, rename_columns)
             """
             - We gather metadata regardless of whether ingested or not. 
             - Variables are intentionally renamed.
             """
             df, columns, shape, dtype = df_setMetadata(
-                dataframe        = dataframe
-                , rename_columns = rename_columns
-                , retype         = retype
+                self=self, rename_columns=rename_columns, retype=retype
             )
             contains_nan = df.isnull().values.any()
 
-            stats_numeric   = dict()
-            stats_categoric = dict()
+            stats_numeric = {}
+            stats_categoric = {}
             for col, typ in dtype.items():
                 is_numeric = np.issubdtype(typ, np.number)
                 is_date = np.issubdtype(typ, np.datetime64)
@@ -414,7 +393,7 @@ class Dataset(BaseModel):
             blob = fs.cat(temp_path)
             fs.delete(temp_path)
             sha256_hexdigest = sha256(blob).hexdigest()
-            if (_ingest==False): blob=None
+            if not _ingest: blob=None
             # Check for duplicates
             dataset = dataset_matchHash(sha256_hexdigest, latest_match, name)
 
@@ -441,69 +420,56 @@ class Dataset(BaseModel):
             return dataset
 
 
-        def from_path(
-            file_path:str
-            , ingest:bool         = True
-            , rename_columns:list = None
-            , retype:object       = None
-            , header:object       = 'infer'
-            , description:str     = None
-            , name:str            = None
-        ):
+        def from_path(self, ingest:bool         = True, rename_columns:list = None, retype:object       = None, header:object       = 'infer', description:str     = None, name:str            = None):
             rename_columns = listify(rename_columns)
 
             # --- Parsing & validation ---
-            file_path = file_path.lower()
-            if file_path.endswith('.tsv'):
+            self = self.lower()
+            if self.endswith('.tsv'):
                 source_format = 'tsv'
-            elif file_path.endswith('.csv'):
+            elif self.endswith('.csv'):
                 source_format = 'csv'
-            elif file_path.endswith('.parquet'):
+            elif self.endswith('.parquet'):
                 source_format = 'parquet'
-            elif file_path.endswith('.pq'):
+            elif self.endswith('.pq'):
                 source_format = 'parquet'
             else:
-                msg = f"\nYikes - `file_path.lower()` ended with neither: '.tsv', '.csv', '.parquet', '.pq':\n{file_path}\n"
+                msg = f"\nYikes - `file_path.lower()` ended with neither: '.tsv', '.csv', '.parquet', '.pq':\n{self}\n"
                 raise Exception(msg)
 
-            if (not path.exists(file_path)):
-                msg = f"\nYikes - The file_path you provided does not exist according to `path.exists(file_path)`:\n{file_path}\n"
+            if not path.exists(self):
+                msg = f"\nYikes - The file_path you provided does not exist according to `path.exists(file_path)`:\n{self}\n"
                 raise Exception(msg)
 
-            if (not path.isfile(file_path)):
-                raise Exception(dedent(
-                    f"Yikes - The path you provided is a directory according to `path.isfile(file_path)`:" \
-                    f"{file_path}" \
-                    f"But `typ=='tabular'` only supports a single file, not an entire directory.`"
-                ))
+            if not path.isfile(self):
+                raise Exception(
+                    dedent(
+                        f"Yikes - The path you provided is a directory according to `path.isfile(file_path)`:{self}But `typ=='tabular'` only supports a single file, not an entire directory.`"
+                    )
+                )
 
-            source_path = path.abspath(file_path)
+            source_path = path.abspath(self)
 
-            df = path_to_df(
-                file_path     = source_path
-                , file_format = source_format
-                , header      = header
+            df = path_to_df(self=source_path, file_format=source_format, header=header)
+
+            return Dataset.Tabular.from_df(
+                dataframe=df,
+                name=name,
+                description=description,
+                rename_columns=rename_columns,
+                retype=retype,
+                _ingest=ingest,
+                _source_path=source_path,
+                _source_format=source_format,
+                _header=header,
             )
 
-            dataset = Dataset.Tabular.from_df(
-                dataframe          = df
-                , name             = name
-                , description      = description
-                , rename_columns   = rename_columns
-                , retype           = retype
-                , _ingest          = ingest
-                , _source_path     = source_path
-                , _source_format   = source_format
-                , _header          = header
-            )
-            return dataset
 
-
-        def to_df(id:int, columns:list=None, samples:list=None):
+        def to_df(self, columns:list=None, samples:list=None):
             columns = listify(columns)
             samples = listify(samples)
-            
-            dataset  = Dataset.get_by_id(id)
+
+            dataset = Dataset.get_by_id(self)
             d_dtypes = dataset.dtypes
 
             # Default is to use all columns
@@ -543,7 +509,7 @@ class Dataset(BaseModel):
             # Specific rows.
             if (samples is not None):
                 df = df.loc[samples]
-            
+
             # --- Type ---
             # We want a filtered dict{'column_name':'dtype_str'} or a single str.
             if (isinstance(d_dtypes, dict)):
@@ -557,25 +523,17 @@ class Dataset(BaseModel):
             return df
 
 
-        def to_arr(id:int, columns:list=None, samples:list=None):
-            dataset = Dataset.get_by_id(id)
-            arr = dataset.to_df(columns=columns, samples=samples).to_numpy()
-            return arr
+        def to_arr(self, columns:list=None, samples:list=None):
+            dataset = Dataset.get_by_id(self)
+            return dataset.to_df(columns=columns, samples=samples).to_numpy()
 
     
     class Sequence():
-        def from_numpy(
-            arr3D_or_npyPath:object
-            , ingest:bool         = None
-            , rename_columns:list = None
-            , retype:object       = None
-            , description:str     = None
-            , name:str            = None
-        ):
+        def from_numpy(self, ingest:bool         = None, rename_columns:list = None, retype:object       = None, description:str     = None, name:str            = None):
             # --- Validation ---
             rename_columns = listify(rename_columns)
             latest_match, version_num = dataset_matchVersion(name=name, typ='sequence')
-            
+
             if (
                 (retype is not None) and (not isinstance(retype,str)) 
                 and (retype.__class__.__name__!='type')
@@ -583,12 +541,12 @@ class Dataset(BaseModel):
                 msg = "\nYikes - 3D ingestion only supports singular retyping:\ne.g. 'int64' or `np.float64`\n"
                 raise Exception(msg)
 
-            arr       = arr3D_or_npyPath 
+            arr = self
             arr_klass = arr.__class__.__name__
             klass     = 'ndarray'
-            short     = 'arr3D_or_npyPath'
             # Fetch array from .npy if it is not an in-memory array.
             if (arr_klass != klass):
+                short     = 'arr3D_or_npyPath'
                 if (not isinstance(arr, str)):
                     msg = f"\nYikes - If `{short}` is not an array then it must be a string-based path.\n"
                     raise Exception(msg)
@@ -598,7 +556,7 @@ class Dataset(BaseModel):
                 if (not path.isfile(arr)):
                     msg = f"\nYikes - The path you provided is not a file according to `path.isfile({short})`\n"
                     raise Exception(msg)
-                
+
                 source_path = arr
                 if (not source_path.lower().endswith(".npy")):
                     raise Exception("\nYikes - Path must end with '.npy'\n")
@@ -606,7 +564,7 @@ class Dataset(BaseModel):
                     arr = np.load(file=arr, allow_pickle=True)
                 except:
                     msg = f"\nYikes - Failed to `np.load(file={short}, allow_pickle=True)` with your `{short}`:\n{arr}\n"
-                    raise Exception(msg)				
+                    raise Exception(msg)
                 source_format = "npy"
                 if (ingest is None):
                     ingest = False
@@ -616,7 +574,7 @@ class Dataset(BaseModel):
                 source_format = "ndarray"
                 if (ingest is None):
                     ingest = True
-                elif (ingest==False):
+                elif not ingest:
                     msg = "\nYikes - In-memory ndarrays must be ingested.\n"
                     raise Exception(msg)
 
@@ -643,7 +601,7 @@ class Dataset(BaseModel):
             else:
                 col_indices = list(range(shape['columns']))
                 columns = [str(i) for i in col_indices]
-            
+
             if (retype is not None):
                 try:
                     arr = arr.astype(retype)
@@ -663,8 +621,8 @@ class Dataset(BaseModel):
             np.save(blob, arr, allow_pickle=True)
             blob = blob.getvalue()
             sha256_hexdigest = sha256(blob).hexdigest()
-            if (ingest==False): blob=None
-            
+            if not ingest: blob=None
+
             # Check for duplicates
             dataset = dataset_matchHash(sha256_hexdigest, latest_match, name)
 
@@ -688,9 +646,9 @@ class Dataset(BaseModel):
             return dataset
 
 
-        def to_arr(id:int, columns:list=None, samples:list=None):
-            columns, samples = listify(columns), listify(samples)			
-            dataset          = Dataset.get_by_id(id)
+        def to_arr(self, columns:list=None, samples:list=None):
+            columns, samples = listify(columns), listify(samples)
+            dataset = Dataset.get_by_id(self)
             d_dtypes         = dataset.dtypes
 
             if (dataset.is_ingested==True):
@@ -714,36 +672,25 @@ class Dataset(BaseModel):
             return arr
 
 
-        def to_df(id:int, columns:list=None, samples:list=None):
+        def to_df(self, columns:list=None, samples:list=None):
             """Interpolation requires dataframes"""
-            dataset = Dataset.get_by_id(id)
+            dataset = Dataset.get_by_id(self)
             # Filters columns and samples
             arr_3D = dataset.to_arr(columns=columns, samples=samples)
 
             # But we still need to name the df columns
             if (columns is None):
                 columns = dataset.columns
-            
-            dfs = [pd.DataFrame(arr_2D, columns=columns) for arr_2D in arr_3D]
-            return dfs
+
+            return [pd.DataFrame(arr_2D, columns=columns) for arr_2D in arr_3D]
 
 
     class Image():
-        def from_numpy(
-            arr4D_or_npyPath:object
-            , ingest:bool         = None # from folder/urls may override
-            , rename_columns:list = None
-            , retype:object       = None
-            , description:str     = None
-            , name:str            = None
-            , _source_path:str    = None # from folder/urls may override
-            , _source_format:str  = None # from folder/urls overrides
-            , _urls:list          = None # from urls overrides
-        ):
+        def from_numpy(self, ingest:bool         = None, rename_columns:list = None, retype:object       = None, description:str     = None, name:str            = None, _source_path:str    = None, _source_format:str  = None, _urls:list          = None):
             # --- Validation ---
             rename_columns = listify(rename_columns)
             latest_match, version_num = dataset_matchVersion(name=name, typ='image')
-            
+
             if (
                 (retype is not None) and (not isinstance(retype,str)) 
                 and (retype.__class__.__name__!='type')
@@ -751,12 +698,12 @@ class Dataset(BaseModel):
                 msg = "\nYikes - 3D ingestion only supports singular retyping:\ne.g. 'int64' or `np.float64`\n"
                 raise Exception(msg)
 
-            arr       = arr4D_or_npyPath 
+            arr = self
             arr_klass = arr.__class__.__name__
             klass     = 'ndarray'
-            short     = 'arr4D_or_npyPath'
             # Fetch array from .npy if it is not an in-memory array.
             if (arr_klass != klass):
+                short     = 'arr4D_or_npyPath'
                 if (not isinstance(arr, str)):
                     msg = f"\nYikes - If `{short}` is not an array then it must be a string-based path.\n"
                     raise Exception(msg)
@@ -767,41 +714,34 @@ class Dataset(BaseModel):
                     msg = f"\nYikes - The path you provided is not a file according to `path.isfile({short})`\n"
                     raise Exception(msg)
                 source_path = arr
-                
+
                 if (not source_path.lower().endswith(".npy")):
                     raise Exception("\nYikes - Path must end with '.npy'\n")
                 try:
                     arr = np.load(file=arr, allow_pickle=True)
                 except:
                     msg = "\nYikes - Failed to `np.load(file={short}, allow_pickle=True)` with your `{short}`:\n{arr}\n"
-                    raise Exception(msg)				
+                    raise Exception(msg)
                 source_format = "npy"
                 # By default, don't ingest npy
                 if (ingest is None):
                     ingest = False
 
-            elif (arr_klass == klass):
+            else:
                 # By default, arrays
                 if (ingest is None):
                     ingest = True
-                # Only calls coming from folder/urls can be (ingest==False)
                 elif (
-                    (_source_path is None) and (_source_format is None) 
-                    and (_urls is None) and (ingest==False)
+                    _source_path is None
+                    and _source_format is None
+                    and _urls is None
+                    and not ingest
                 ):
                     msg = "\nYikes - `ingest==False` but ndarray is not coming from a path/url.\n"
                     raise Exception(msg)
-                
-                if (_source_path is None):
-                    source_path = None
-                else:
-                    source_path = _source_path
 
-                if (_source_format is None):
-                    source_format = "ndarray"
-                else:
-                    source_format = _source_format
-
+                source_path = None if (_source_path is None) else _source_path
+                source_format = "ndarray" if (_source_format is None) else _source_format
             arr_validate(arr)
             if (arr.ndim != 4):
                 raise Exception(dedent(f"""
@@ -809,7 +749,7 @@ class Dataset(BaseModel):
                 Your array dimensions had <{arr.ndim}> dimensions.
                 Tip: the shape of each internal array must be the same.
                 """))
-            
+
             # --- Metadata ---
             shape = {}
             s = arr.shape
@@ -824,7 +764,7 @@ class Dataset(BaseModel):
             else:
                 col_indices = list(range(shape['columns']))
                 columns = [str(i) for i in col_indices]
-            
+
             if (retype is not None):
                 try:
                     arr = arr.astype(retype)
@@ -836,7 +776,7 @@ class Dataset(BaseModel):
             except:
                 print(f"\nYikes - Failed to conert final array dtype to a string: {arr.dtype}\n")
                 raise
-            
+
             # --- Persistence ---
             contains_nan = np.isnan(arr).any()
             memory_MB    = arr.nbytes/1048576
@@ -844,8 +784,8 @@ class Dataset(BaseModel):
             np.save(blob, arr, allow_pickle=True)
             blob = blob.getvalue()
             sha256_hexdigest = sha256(blob).hexdigest()
-            if (ingest==False): blob=None
-            
+            if not ingest: blob=None
+
             # Check for duplicates
             dataset = dataset_matchHash(sha256_hexdigest, latest_match, name)
 
@@ -870,16 +810,9 @@ class Dataset(BaseModel):
             return dataset
 
 
-        def from_folder(
-            folder_path:str
-            , ingest:bool         = False
-            , rename_columns:list = None
-            , retype:object       = None
-            , description:str     = None
-            , name:str            = None
-        ):
+        def from_folder(self, ingest:bool         = False, rename_columns:list = None, retype:object       = None, description:str     = None, name:str            = None):
             # --- Assemble the array ---
-            source_path     = path.abspath(folder_path)
+            source_path = path.abspath(self)
             arr_4D, formats = imgFolder_to_arr4D(source_path)
 
             # --- Detect file formats ---
@@ -887,88 +820,78 @@ class Dataset(BaseModel):
             single_format = len(formats)==1
             real_format   = formats[0]!=None
 
-            if ((single_format==True) and (real_format==True)):
+            if single_format and real_format:
                 source_format = formats[0]
-            elif ((single_format==True) and (real_format==False)):
+            elif single_format:
                 source_format = 'pillow'
-            elif (single_format==False):
+            else:
                 source_format = 'mixed'
 
-            dataset = Dataset.Image.from_numpy(
-                arr4D_or_npyPath = arr_4D
-                , name           = name
-                , description    = description
-                , rename_columns = rename_columns
-                , retype         = retype
-                , ingest         = ingest
-                , _source_path   = source_path
-                , _source_format = source_format
+            return Dataset.Image.from_numpy(
+                arr4D_or_npyPath=arr_4D,
+                name=name,
+                description=description,
+                rename_columns=rename_columns,
+                retype=retype,
+                ingest=ingest,
+                _source_path=source_path,
+                _source_format=source_format,
             )
-            return dataset
 
 
-        def from_urls(
-            urls:list
-            , source_path:str     = None # not used anywhere, but doesn't hurt to record e.g. FTP site
-            , ingest:bool         = False
-            , rename_columns:list = None
-            , retype:object       = None
-            , description:str     = None
-            , name:str            = None
-        ):
+        def from_urls(self, source_path:str     = None, ingest:bool         = False, rename_columns:list = None, retype:object       = None, description:str     = None, name:str            = None):
             # --- Assemble the array ---
-            urls            = listify(urls)
-            arr_4D, formats = imgURLs_to_arr4D(urls)
-            
+            self = listify(self)
+            arr_4D, formats = imgURLs_to_arr4D(self)
+
             # --- Detect file formats ---
             formats       = list(set(formats))
             single_format = len(formats)==1
             real_format   = formats[0]!=None
 
-            if ((single_format==True) and (real_format==True)):
+            if single_format and real_format:
                 source_format = formats[0]
-            elif ((single_format==True) and (real_format==False)):
+            elif single_format:
                 source_format = 'pillow'
-            elif (single_format==False):
+            else:
                 source_format = 'mixed'
 
-            dataset = Dataset.Image.from_numpy(
-                arr4D_or_npyPath = arr_4D
-                , name           = name
-                , description    = description
-                , rename_columns = rename_columns
-                , retype         = retype
-                , ingest         = ingest
-                , _source_path   = source_path
-                , _source_format = source_format
-                , _urls          = urls
+            return Dataset.Image.from_numpy(
+                arr4D_or_npyPath=arr_4D,
+                name=name,
+                description=description,
+                rename_columns=rename_columns,
+                retype=retype,
+                ingest=ingest,
+                _source_path=source_path,
+                _source_format=source_format,
+                _urls=self,
             )
-            return dataset
         
 
-        def to_arr(id:int, columns:list=None, samples:list=None):
+        def to_arr(self, columns:list=None, samples:list=None):
             columns, samples = listify(columns), listify(samples)			
-            
+
             # --- Fetch ---
-            d        = Dataset.get_by_id(id)
+            d = Dataset.get_by_id(self)
             d_dtypes = d.dtypes
             d_path   = d.source_path
             d_urls   = d.urls
             d_ingest = d.is_ingested
-            
+
             # Cases must be in this order
             if (d_ingest==True):
                 arr = np.load(BytesIO(d.blob), allow_pickle=True)
 
             elif (d_urls is not None):
                 arr, _ = imgURLs_to_arr4D(d_urls)
-            
+
             elif (path.isdir(d_path)):
                 arr, _ = imgFolder_to_arr4D(d_path)
-            
+
             else:
                 arr = np.load(d.source_path, allow_pickle=True)
-            
+
             if (d_ingest==False):
                 try:
                     arr = arr.astype(d_dtypes)
@@ -993,11 +916,11 @@ class Dataset(BaseModel):
             return arr
 
 
-        def to_df(id:int, columns:list=None, samples:list=None):
+        def to_df(self, columns:list=None, samples:list=None):
             """Need dataframes for interpolation"""
-            dataset = Dataset.get_by_id(id)
+            dataset = Dataset.get_by_id(self)
             arr_4D = dataset.to_arr(columns,samples)
-            
+
             if (columns is None):
                 columns = dataset.columns
 
@@ -1011,11 +934,11 @@ class Dataset(BaseModel):
             return dfs
         
 
-        def to_pillow(id:int, samples:list=None):
+        def to_pillow(self, samples:list=None):
             """User-facing for inspecting. Not used in library."""
-            dataset = Dataset.get_by_id(id)
+            dataset = Dataset.get_by_id(self)
             arr_4D = dataset.to_arr(samples=samples).astype('uint8')
-            
+
             imgs = []
             for arr in arr_4D:
                 channel_dim = arr.shape[0]
@@ -1052,8 +975,8 @@ class Label(BaseModel):
     
     dataset = ForeignKeyField(Dataset, backref='labels')
     
-    def from_dataset(dataset_id:int, columns:list=None):
-        d       = Dataset.get_by_id(dataset_id)
+    def from_dataset(self, columns:list=None):
+        d = Dataset.get_by_id(self)
         columns = listify(columns)
 
         if (d.typ!='tabular'):
@@ -1062,11 +985,11 @@ class Label(BaseModel):
             But you provided `typ`: <{d.typ}>
             """))
         d_cols = d.columns
-        
+
         if (columns is None):
             # Handy for sequence and image pipelines
             columns = d_cols
-        elif (columns is not None):
+        else:
             # Check that the user-provided columns exist.
             all_cols_found = all(c in d_cols for c in columns)
             if (not all_cols_found):
@@ -1079,7 +1002,7 @@ class Label(BaseModel):
         metrics can't be run on > 2 columns.
         - Negative values do not alter type of numpy int64 and float64 arrays.
         """
-        label_df = Dataset.to_df(id=dataset_id, columns=columns)
+        label_df = Dataset.to_df(id=self, columns=columns)
         column_count = len(columns)
         if (column_count > 1):
             unique_values = []
@@ -1089,20 +1012,14 @@ class Label(BaseModel):
                 if (len(uniques) == 1):
                     print(
                         f"Warning - There is only 1 unique value for this label column.\n" \
-                        f"Unique value: <{uniques[0]}>\n" \
-                        f"Label column: <{c}>\n"
+                            f"Unique value: <{uniques[0]}>\n" \
+                            f"Label column: <{c}>\n"
                     )
             flat_uniques = np.concatenate(unique_values).ravel()
             all_uniques = np.unique(flat_uniques).tolist()
 
             for i in all_uniques:
-                if (
-                    ((i == 0) or (i == 1)) 
-                    or 
-                    ((i == 0.) or (i == 1.))
-                ):
-                    pass
-                else:
+                if i not in [0, 1, 0.0, 1.0]:
                     raise Exception(dedent(f"""
                     Yikes - When multiple columns are provided, they must be One Hot Encoded:
                     Unique values of your columns were neither (0,1) or (0.,1.) or (0.0,1.0).
@@ -1112,22 +1029,21 @@ class Label(BaseModel):
             del label_df
 
             # Now check if each row in the labels is truly OHE.
-            label_arr = Dataset.to_arr(id=dataset_id, columns=columns)
+            label_arr = Dataset.to_arr(id=self, columns=columns)
             for i, arr in enumerate(label_arr):
-                if 1 in arr:
-                    arr = list(arr)
-                    arr.remove(1)
-                    if 1 in arr:
-                        raise Exception(dedent(f"""
-                        Yikes - Label row <{i}> is supposed to be an OHE row,
-                        but it contains multiple hot columns where value is 1.
-                        """))
-                else:
+                if 1 not in arr:
                     raise Exception(dedent(f"""
                     Yikes - Label row <{i}> is supposed to be an OHE row,
                     but it contains no hot columns where value is 1.
                     """))
 
+                arr = list(arr)
+                arr.remove(1)
+                if 1 in arr:
+                    raise Exception(dedent(f"""
+                        Yikes - Label row <{i}> is supposed to be an OHE row,
+                        but it contains multiple hot columns where value is 1.
+                        """))
         elif (column_count==1):
             # At this point, `label_df` is a single column df that needs to fecthed as a Series.
             col = columns[0]
@@ -1141,86 +1057,70 @@ class Label(BaseModel):
 
                 if (
                     (np.issubdtype(label_dtype, np.signedinteger))
-                    or
-                    (np.issubdtype(label_dtype, np.unsignedinteger))
-                ):
-                    if (class_count >= 5):
-                        print(
-                            f"Tip - Detected  `unique_classes >= {class_count}` for an integer Label." \
+                    or (np.issubdtype(label_dtype, np.unsignedinteger))
+                ) and (class_count >= 5):
+                    print(
+                        f"Tip - Detected  `unique_classes >= {class_count}` for an integer Label." \
                             f"If this Label is not meant to be categorical, then we recommend you convert to a float-based dtype." \
                             f"Although you'll still be able to bin these integers when it comes time to make a Splitset."
-                        )
+                    )
                 if (class_count == 1):
                     print(
                         f"Warning - Only detected 1 unique label class. Should have 2 or more unique classes. " \
-                        f"Your Label's only class was: <{unique_classes[0]}>."
+                            f"Your Label's only class was: <{unique_classes[0]}>."
                     )
 
-        label = Label.create(
-            dataset          = d
-            , columns        = columns
-            , column_count   = column_count
-            , unique_classes = unique_classes
+        return Label.create(
+            dataset=d,
+            columns=columns,
+            column_count=column_count,
+            unique_classes=unique_classes,
         )
-        return label
 
 
-    def to_df(id:int):
-        label   = Label.get_by_id(id)
+    def to_df(self):
+        label = Label.get_by_id(self)
         dataset = label.dataset
         columns = label.columns
-        df      = Dataset.to_df(id=dataset.id, columns=columns)
-        return df
+        return Dataset.to_df(self=dataset.id, columns=columns)
 
 
-    def to_arr(id:int):
-        label   = Label.get_by_id(id)
+    def to_arr(self):
+        label = Label.get_by_id(self)
         dataset = label.dataset
         columns = label.columns
-        arr     = Dataset.to_arr(id=dataset.id, columns=columns)
-        return arr
+        return Dataset.to_arr(self=dataset.id, columns=columns)
 
 
-    def get_dtypes(id:int):
-        label   = Label.get_by_id(id)
+    def get_dtypes(self):
+        label = Label.get_by_id(self)
         columns = label.columns
-        dtypes  = label.dataset.get_dtypes(columns=columns)
-        return dtypes
+        return label.dataset.get_dtypes(columns=columns)
 
 
-    def preprocess(
-        id:int
-        , is_interpolated:bool  = True
-        #, is_imputed:bool=True
-        #, is_outlied:bool=True
-        , is_encoded:bool       = True
-        , samples:dict          = None # Only used to process training samples separately
-        , fold:object           = None # Used during training and inference
-        , key_train:list        = None # Used during stage_data caching, but not during inference
-        , inference_labelID:int = None
-    ):	
+    def preprocess(self, is_interpolated:bool  = True, is_encoded:bool       = True, samples:dict          = None, fold:object           = None, key_train:list        = None, inference_labelID:int = None):
         """During inference, we want to use the original label's relationships"""
-        label = Label.get_by_id(id)
+        label = Label.get_by_id(self)
         if (inference_labelID is not None):
             label_array = Label.get_by_id(inference_labelID).to_arr()
         else:
             label_array = label.to_arr()
 
         # --- Interpolate ---
-        if ((is_interpolated==True) and (label.labelinterpolaters.count()>0)):
+        if is_interpolated and label.labelinterpolaters.count() > 0:
             labelinterpolater = label.labelinterpolaters[-1]
             label_array = labelinterpolater.interpolate(array=label_array, samples=samples)
-        
+
         # --- Encode ---
         labelcoders = label.labelcoders
-        if ((is_encoded==True) and (labelcoders.count()>0)):
+        if is_encoded and labelcoders.count() > 0:
             if (fold is not None):
                 fitted_encoders = fold.fitted_labelcoder
                 item            = fold
             else:
                 fitted_encoders = label.fitted_labelcoder
                 item            = label
-            
+
             labelcoder = labelcoders[-1]
             # Hasn't been fit yet.
             if (fitted_encoders is None):
@@ -1268,17 +1168,13 @@ class Feature(BaseModel):
     splitset = DeferredForeignKey('Splitset', deferrable='INITIALLY DEFERRED', null=True, backref='features')
 
 
-    def from_dataset(
-        dataset_id:int
-        , include_columns:list = None
-        , exclude_columns:list = None
-    ):
+    def from_dataset(self, include_columns:list = None, exclude_columns:list = None):
         #As we get further away from the `Dataset.<Types>` they need less isolation.
-        dataset         = Dataset.get_by_id(dataset_id)
+        dataset = Dataset.get_by_id(self)
         include_columns = listify(include_columns)
         exclude_columns = listify(exclude_columns)
         d_cols          = dataset.columns
-        
+
         if ((include_columns is not None) and (exclude_columns is not None)):
             msg = "\nYikes - You can set either `include_columns` or `exclude_columns`, but not both.\n"
             raise Exception(msg)
@@ -1318,35 +1214,29 @@ class Feature(BaseModel):
         if (columns_excluded is not None):
             columns_excluded = sorted(columns_excluded)
 
-        feature = Feature.create(
-            dataset            = dataset
-            , columns          = columns
-            , columns_excluded = columns_excluded
+        return Feature.create(
+            dataset=dataset, columns=columns, columns_excluded=columns_excluded
         )
-        return feature
 
 
-    def to_df(id:int):
-        feature = Feature.get_by_id(id)
+    def to_df(self):
+        feature = Feature.get_by_id(self)
         dataset = feature.dataset
         columns = feature.columns
-        df      = Dataset.to_df(id=dataset.id, columns=columns)
-        return df
+        return Dataset.to_df(self=dataset.id, columns=columns)
 
 
-    def to_arr(id:int):
-        feature = Feature.get_by_id(id)
+    def to_arr(self):
+        feature = Feature.get_by_id(self)
         dataset = feature.dataset
         columns = feature.columns
-        arr     = Dataset.to_arr(id=dataset.id, columns=columns)
-        return arr
+        return Dataset.to_arr(self=dataset.id, columns=columns)
 
 
-    def get_dtypes(id:int):
-        feature = Feature.get_by_id(id)
+    def get_dtypes(self):
+        feature = Feature.get_by_id(self)
         cols    = feature.columns
-        dtypes  = feature.dataset.get_dtypes(columns=cols)
-        return dtypes
+        return feature.dataset.get_dtypes(columns=cols)
 
 
     def interpolate(
